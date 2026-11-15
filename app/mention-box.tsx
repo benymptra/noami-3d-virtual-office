@@ -2,6 +2,7 @@
 // Kotak tulisan dengan @mention: ketik "@" lalu pilih teman (manusia atau agen).
 import { useMemo, useRef, useState } from "react";
 import type { Mentionable } from "@/lib/mentions";
+import { useAutoGrow } from "./auto-grow";
 import { Px, Emo } from "./pixel-icon";
 
 type Props = Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange"> & {
@@ -11,6 +12,7 @@ type Props = Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "
 
 export default function MentionBox({ value, onChange, people, picked, onPick, ...rest }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  useAutoGrow(ref, value);
   const [q, setQ] = useState<string | null>(null);
   const [at, setAt] = useState(0);
   const [hi, setHi] = useState(0);

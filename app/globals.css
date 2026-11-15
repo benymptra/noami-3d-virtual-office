@@ -854,3 +854,11 @@ svg.px{display:inline-block;vertical-align:-0.22em;flex:none;image-rendering:pix
 .rm-t b{font-size:13.5px;overflow-wrap:anywhere}
 .rm-t small{font-size:12.5px;color:var(--muted)}
 .reminddrawer .dbody > h3.sect{margin:6px 0 0}
+
+/* Answer cards: save / edit per question; text boxes grow as you type */
+.compose textarea,.mbox textarea{resize:none}
+.qcard textarea.qc-note{width:100%;resize:none;font:inherit;font-size:13.5px;line-height:1.45;padding:6px 9px;min-height:34px}
+.qcard.draft{border-color:var(--yellow);border-style:dashed}
+.qc-actions{display:flex;gap:6px;justify-content:flex-end}
+.qc-saved{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.qc-ans{font-size:13.5px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;flex:1;min-width:0}

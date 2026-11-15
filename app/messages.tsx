@@ -2,6 +2,7 @@
 // Person-to-person chat: a list of teammates, then the conversation with one of them.
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { GrowText } from "./auto-grow";
 import remarkGfm from "remark-gfm";
 import type { DmMessage, DmPerson } from "@/lib/dm";
 import { mentionLink, keepMentionUrl } from "./mention-box";
@@ -155,7 +156,7 @@ export default function Messages({ ws, start, onClose, onUnread }: { ws: string;
               </div>
             </div>
             <div className="compose">
-              <textarea id="dm-msg" value={text} onChange={e => setText(e.target.value)} placeholder={`Message ${other?.name ?? ""}…`} autoFocus
+              <GrowText id="dm-msg" value={text} onChange={e => setText(e.target.value)} placeholder={`Message ${other?.name ?? ""}…`} autoFocus
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
               <div className="row">
                 <span className="hint">Enter to send · Shift+Enter for a new line · {other?.name?.split(/\s+/)[0] ?? "They"} gets a notification</span>

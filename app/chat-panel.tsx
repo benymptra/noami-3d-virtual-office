@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { GrowText } from "./auto-grow";
 import remarkGfm from "remark-gfm";
 import FilePicker, { uploadAll } from "./file-picker";
 import FilePreview from "./file-preview";
@@ -145,7 +146,7 @@ export default function ChatPanel({ ws, agent, isMika, projectId, laptopOn, onCl
             {isMika && <button className="btn sm" disabled={!!sending || working} onClick={() => send("OK, proceed. Please split what we discussed into tasks for the right agents (with due dates and who should review), create them, then list the tasks you created.")}><Px name="todo" /> Ask {MANAGER} to split it into team tasks</button>}
           </div>
         )}
-        <textarea id="chat-msg" value={text} onChange={e => setText(e.target.value)} placeholder={`Message ${agent.name}…`}
+        <GrowText id="chat-msg" value={text} onChange={e => setText(e.target.value)} placeholder={`Message ${agent.name}…`}
           onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); } }}
           onPaste={e => { const p = [...e.clipboardData.files]; if (p.length) { e.preventDefault(); setFiles([...files, ...p]); } }} />
         <FilePicker files={files} onChange={setFiles} />

@@ -10,6 +10,7 @@ import { Px, Emo, PxText, PxSpan, rehypePx } from "./pixel-icon";
 import MentionBox, { mentionLink, keepMentionUrl } from "./mention-box";
 import { encodeMentions, type Mentionable } from "@/lib/mentions";
 import { answersToText } from "@/lib/digest";
+import { useAutoGrow } from "./auto-grow";
 
 const md = (text: string) => <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypePx]} urlTransform={keepMentionUrl} components={{ a: mentionLink, span: PxSpan }}>{text}</ReactMarkdown>;
 const POLL_MS = 4000;
@@ -21,7 +22,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
   const [busy, setBusy] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [picked, setPicked] = useState<Mentionable[]>([]);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [answers, setAnswers] = useState<Record<number, Ans>>({});
   const [link, setLink] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [pending, setPending] = useState<{ text: string; files: string[] } | null>(null);
@@ -88,8 +89,15 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
     return () => clearInterval(t);
   }, [watching, load]);
 
-  const answerText = d?.digest?.open ? answersToText(d.digest.questions, answers) : "";
-  const answered = d?.digest?.open ? d.digest.questions.filter(q => answers[q.n]?.trim()).length : 0;
+  // Unsaved drafts count too, so nothing you typed is ever lost when you send.
+  const flat = Object.fromEntries(Object.entries(answers).map(([n, a]) => [n, ansText(a)]));
+  const answerText = d?.digest?.open ? answersToText(d.digest.questions, flat) : "";
+  const answered = d?.digest?.open ? d.digest.questions.filter(q => flat[q.n]?.trim()).length : 0;
+  const drafts = d?.digest?.open ? d.digest.questions.filter(q => answers[q.n] && !answers[q.n].saved && flat[q.n]?.trim()).length : 0;
+  // Approving closes the task, so it is only offered when every answer is a plain "OK" and nothing else is typed.
+  const onlyOk = d?.digest?.open ? d.digest.questions.every(q => !flat[q.n]?.trim() || (OK.test(flat[q.n].trim()) && !answers[q.n]?.note.trim())) : true;
+  const hasInput = answered > 0 || !!text.trim() || files.length > 0;
+  const canApprove = !hasInput || (onlyOk && !text.trim() && files.length === 0);
 
   async function act(action: string, extra: Record<string, string> = {}) {
     setBusy(action); setErr(null);
@@ -230,19 +238,9 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
             {dg?.open && dg.questions.length > 0 && d.mode !== "closed" && (
               <div className="qcards">
                 <div className="dg-head"><b><Px name="person" /> {dg.from} needs your answer</b><small>{answered}/{dg.questions.length} answered</small></div>
-                {dg.questions.map(q => {
-                  const a = answers[q.n] ?? "";
-                  const set = (v: string) => setAnswers(cur => ({ ...cur, [q.n]: v }));
-                  return (
-                    <div key={q.n} className={`qcard ${a.trim() ? "done" : ""}`}>
-                      <div className="qc-q"><span className="qc-n">{q.n}</span><span>{q.text}</span></div>
-                      {q.options.length > 0 && (
-                        <div className="qc-opts">{q.options.map(o => <button key={o} type="button" aria-pressed={a === o} onClick={() => set(a === o ? "" : o)}>{o}</button>)}</div>
-                      )}
-                      <input className="input" placeholder={q.options.length ? "Or type your own answer…" : "Your answer…"} value={q.options.includes(a) ? "" : a} onChange={e => set(e.target.value)} />
-                    </div>
-                  );
-                })}
+                {dg.questions.map(q => (
+                  <QCard key={q.n} q={q} a={answers[q.n] ?? EMPTY} onChange={a => setAnswers(cur => ({ ...cur, [q.n]: a }))} />
+                ))}
               </div>
             )}
 
@@ -252,7 +250,7 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
                 {busy ? <div className="loading"><span className="spinner" /> {busyLabel[busy] ?? "Working…"}</div>
                   : confirm ? (
                     <div className="confirm">
-                      <span>{confirm === "approve" ? "Approve and close this task?" : "Mark as done? The next agent can continue."}</span>
+                      <span>{confirm === "approve" ? (answered ? "Send your OK and close this task?" : "Approve and close this task?") : "Mark as done? The next agent can continue."}</span>
                       <div className="row">
                         <button className="btn" onClick={() => setConfirm(null)}>Cancel</button>
                         <button className="btn primary" onClick={() => act(confirm, confirm === "done" ? { link } : {})}>Yes, continue</button>
@@ -274,18 +272,25 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
                         <p className="hint"><Px name="mention" /> Mentioning: {picked.filter(p => text.includes("@" + p.name)).map(p => `${p.name} (${p.kind === "agent" ? "will reply right away" : "gets a notification"})`).join(", ")}</p>
                       )}
                       <FilePicker files={files} onChange={setFiles} />
+                      {drafts > 0 && <p className="hint"><Px name="edit" /> {drafts} answer{drafts > 1 ? "s are" : " is"} not saved yet. They will be sent as typed.</p>}
                       <div className="row">
                         {!d.assignee.online && d.assignee.kind === "agent" && <span className="hint"><Px name="moon" /> Laptop off: the agent picks this up when it&apos;s back on.</span>}
-                        {d.mode === "review" && <>
-                          <button className="btn" disabled={!canSend} onClick={() => act("revise")}><Px name="edit" /> Request changes</button>
+                        {d.mode === "review" && (canApprove && !hasInput ? <>
+                          <button className="btn" disabled title="Answer a question or type feedback first"><Px name="edit" /> Request changes</button>
                           <button className="btn primary" onClick={() => setConfirm("approve")}><Px name="done" /> Approve</button>
-                        </>}
+                        </> : canApprove ? <>
+                          <button className="btn" onClick={() => act("revise")}><Px name="edit" /> Send without closing</button>
+                          <button className="btn primary" onClick={() => setConfirm("approve")}><Px name="done" /> Approve &amp; close</button>
+                        </> : <>
+                          <span className="hint">Your answers include corrections, so the task stays open for the agent.</span>
+                          <button className="btn primary" onClick={() => act("revise")}><Px name="edit" /> {answered ? `Submit ${answered} answer${answered > 1 ? "s" : ""}` : "Send changes"}</button>
+                        </>)}
                         {d.mode === "human" && <>
                           <button className="btn" onClick={onClose}><Px name="pause" /> Not yet</button>
                           <button className="btn primary" onClick={() => setConfirm("done")}><Px name="done" /> Done</button>
                         </>}
                         {(d.mode === "working" || d.mode === "waiting") && (
-                          <button className="btn primary" disabled={!canSend} onClick={() => act("reply")}>{answered ? `Send ${answered} answer${answered > 1 ? "s" : ""}` : "Send"}</button>
+                          <button className="btn primary" disabled={!canSend} onClick={() => act("reply")}>{answered ? `Submit ${answered} answer${answered > 1 ? "s" : ""}` : "Send"}</button>
                         )}
                       </div>
                     </>
@@ -299,3 +304,43 @@ export default function TaskPanel({ id, ws, onClose, onChanged }: { id: string; 
     </div>
   );
 }
+
+// ---- One question from the agent: pick an option and/or write a note, then Save (Edit to change it) ----
+type Ans = { opt: string; note: string; saved: boolean };
+const EMPTY: Ans = { opt: "", note: "", saved: false };
+const OK = /^(ok|oke|okay|okey|yes|ya|iya|setuju|sesuai|approve[d]?|lgtm|sudah sesuai|good)\b/i;
+const ansText = (a?: Ans) => !a ? "" : a.opt && a.note.trim() ? `${a.opt} — ${a.note.trim()}` : a.opt || a.note.trim();
+
+function QCard({ q, a, onChange }: { q: { n: number; text: string; options: string[] }; a: Ans; onChange: (a: Ans) => void }) {
+  const box = useRef<HTMLTextAreaElement>(null);
+  useAutoGrow(box, a.note, 220);
+  const has = !!ansText(a);
+  return (
+    <div className={`qcard ${a.saved && has ? "done" : has ? "draft" : ""}`}>
+      <div className="qc-q"><span className="qc-n">{q.n}</span><span>{q.text}</span></div>
+      {a.saved && has ? (
+        <div className="qc-saved">
+          <span className="qc-ans">{ansText(a)}</span>
+          <button type="button" className="btn sm" onClick={() => { onChange({ ...a, saved: false }); requestAnimationFrame(() => box.current?.focus()); }}><Px name="edit" /> Edit</button>
+        </div>
+      ) : (
+        <>
+          {q.options.length > 0 && (
+            <div className="qc-opts">{q.options.map(o => (
+              <button key={o} type="button" aria-pressed={a.opt === o} onClick={() => onChange({ ...a, opt: a.opt === o ? "" : o })}>{o}</button>
+            ))}</div>
+          )}
+          <textarea ref={box} className="input qc-note" rows={1} value={a.note}
+            placeholder={q.options.length ? (a.opt ? `Add details to "${a.opt}" (optional)…` : "Or type your own answer…") : "Your answer…"}
+            onChange={e => onChange({ ...a, note: e.target.value })}
+            onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && has) { e.preventDefault(); onChange({ ...a, saved: true }); } }} />
+          <div className="qc-actions">
+            {has && <button type="button" className="btn sm" onClick={() => onChange(EMPTY)}>Clear</button>}
+            <button type="button" className="btn sm primary" disabled={!has} onClick={() => onChange({ ...a, saved: true })}><Px name="check" /> Save</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
