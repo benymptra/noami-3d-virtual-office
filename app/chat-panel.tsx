@@ -54,7 +54,7 @@ export default function ChatPanel({ ws, agent: start, laptopOn, onClose, onMakeT
   const [files, setFiles] = useState<File[]>([]);
   const [sending, setSending] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [onlyThis, setOnlyThis] = useState(false);
+  const [onlyThis, setOnlyThis] = useState(true);
   const [histOpen, setHistOpen] = useState(false);
   const [pickAgent, setPickAgent] = useState(false);
   const body = useRef<HTMLDivElement>(null);
@@ -128,8 +128,8 @@ export default function ChatPanel({ ws, agent: start, laptopOn, onClose, onMakeT
       <aside className="ch-side" aria-label="Chat history">
         <button className="btn primary ch-new" onClick={() => newChat()}><Px name="plus" size="0.9em" /> New chat</button>
         <div className="ch-filter" role="group" aria-label="Show chats">
+          <button aria-pressed={onlyThis} onClick={() => setOnlyThis(true)}>This agent</button>
           <button aria-pressed={!onlyThis} onClick={() => setOnlyThis(false)}>All agents</button>
-          <button aria-pressed={onlyThis} onClick={() => setOnlyThis(true)}>Only {agent.name.replace(/^\p{Extended_Pictographic}\uFE0F?\s*/u, "")}</button>
         </div>
         <div className="ch-list">
           {sessions === null && <div className="loading"><span className="spinner sm" /> Loading chats…</div>}
