@@ -415,7 +415,7 @@ export default function OfficeView({ office, attention, people, seen, meId }: { 
         <ChatPanel ws={office.workspaceId} agent={{ id: chatWith.agentId, name: chatWith.name, emoji: chatWith.emoji, role: chatWith.description }}
           isMika={isManager(chatWith.name)} projectId={null} laptopOn={office.open}
           onClose={() => setChatWith(null)}
-          onMakeTask={detail => { const d = chatWith; setChatWith(null); setOpenDesk(d); setDraft(detail); setAdding(true); }} />
+          onMakeTask={(detail, agentId) => { const d = allDesks.find(x => x.agentId === agentId) ?? chatWith; setChatWith(null); setOpenDesk(d); setDraft(detail); setAdding(true); }} />
       )}
       {/* Floating button to chat with the office manager, like a help button on a website. */}
       {mika && !chatWith && !openDesk && !openTask && !openHuman && (
