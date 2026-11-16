@@ -1,3 +1,41 @@
+# Noami · Virtual Office (3D)
+
+A fork of [kantor-virtual](https://github.com/sarahshafiran/kantor-virtual) with a **3D isometric office** in a dark *Midnight Steel* theme.
+The 3D office fills the screen; every panel (workspace island, dock, roster, HQ panel, drawers, toolbar) floats above it as Apple-style glass.
+Everything still reads from and writes to Multica exactly like the original.
+
+**Try it without a Multica account:** put `MULTICA_DEMO=1` in `.env.local`, run `npm run dev`, open http://127.0.0.1:3456.
+Demo mode answers from built-in sample data (`lib/demo-api.ts`); your changes reset when the server restarts.
+
+| What | Where |
+|---|---|
+| 3D scene (React Three Fiber) | `app/_office-3d/scene.tsx` |
+| Floor plan: zones, project slots, levels | `app/_office-3d/plan.ts` |
+| Shared geometry / materials | `app/_office-3d/geo.ts` |
+| Floating UI on the Office page | `app/office-view.tsx` |
+| Floating island + dock (all pages) | `app/shell.tsx` |
+| Midnight Steel Glass theme | `app/steel.css` (layered on `globals.css`) |
+
+### Deploy the demo to Vercel
+
+1. Import this repo in Vercel (framework: Next.js, root directory: the repo root, default build command).
+2. Add the environment variable `MULTICA_DEMO` = `1` (Production and Preview). Nothing else is needed.
+3. Deploy. The background watchdog is switched off automatically on Vercel.
+
+Good to know: in demo mode the sample data lives in the memory of each server function, so on Vercel changes
+(approving a task, a new project, a moved desk) can reset or differ between requests. That's fine for showing the office;
+to keep real data, connect a Multica server instead (`MULTICA_API_URL`, `MULTICA_APP_URL`, `MULTICA_TOKEN`; keep the token secret).
+
+Design notes: the product plan is in [`docs/PRD.md`](docs/PRD.md) and the first single-file mockup in [`docs/mockups/index.html`](docs/mockups/index.html).
+
+How rooms are placed: team desks, lounge, meeting room and runtimes stay on Level 1. Each project room takes the first free slot
+that fits its desks; when none fits, a new level is stacked on top (floor picker top-left, or click the glass elevator).
+Desks you drag in **Edit** mode are saved in this browser.
+
+Controls: drag = rotate · right-drag = pan · scroll = zoom · Q/E rotate 90° · R reset · L name tags · W A S D walk · Esc close/unfollow.
+
+---
+
 # Virtual Office
 
 A playful, pixel-style office for your [Multica](https://multica.ai) workspace. You see your people and AI agents sitting at desks, project rooms, what needs your attention, and a task board, all in one place.

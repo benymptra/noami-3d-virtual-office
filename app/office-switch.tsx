@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import type { Plan } from "@/lib/office-control";
 import { Px, PxText } from "./pixel-icon";
 
@@ -49,7 +50,8 @@ export default function OfficeSwitch({ ws, name, switchOpen, laptopOn, parked, o
       <span className={`openbadge ${status.cls}`}><Px name={status.icon} /> {status.text}</span>
       <button className={`btn sm ${switchOpen ? "" : "primary"}`} onClick={preview}>{switchOpen ? <><Px name="lock" /> Close office</> : <><Px name="unlock" /> Open office</>}</button>
 
-      {asking && (
+      {/* Portal to the page root: the floating island uses backdrop-filter, which would trap a fixed modal inside it. */}
+      {asking && createPortal(
         <>
           <div className="scrim" onClick={() => !busy && setAsking(false)} />
           <div className="modal" role="dialog" aria-modal="true" aria-label={switchOpen ? "Close office" : "Open office"}>
@@ -86,7 +88,8 @@ export default function OfficeSwitch({ ws, name, switchOpen, laptopOn, parked, o
               <button className={`btn primary`} disabled={!plan || busy} onClick={run}>{busy ? "Working…" : switchOpen ? "Yes, close it" : "Yes, open it"}</button>
             </div>
           </div>
-        </>
+        </>,
+        document.querySelector(".glassui") ?? document.body
       )}
     </>
   );

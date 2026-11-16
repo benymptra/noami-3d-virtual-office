@@ -1,0 +1,1711 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Noami · Virtual Office</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#070b12; --steel-1:#0f1621; --steel-2:#182231; --steel-3:#253246; --steel-4:#3a4a61;
+  --accent:#3ee6c1; --accent-soft:rgba(62,230,193,.16);
+  --working:#3ee6c1; --review:#f5b84b; --failed:#ff5d6c; --ready:#7aa2ff; --break:#a08cff; --off:#4b5a70;
+  --text:#eef3f9; --muted:rgba(235,242,250,.62); --faint:rgba(235,242,250,.38);
+  --glass:rgba(18,26,38,.55); --glass-strong:rgba(18,26,38,.72);
+  --stroke:rgba(255,255,255,.10); --hi:inset 0 1px 0 rgba(255,255,255,.08);
+  --shadow:0 20px 60px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.25);
+  --r-xl:22px; --r-lg:16px; --r-md:12px;
+  --spring:cubic-bezier(.2,.8,.2,1);
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font:14px/1.45 Inter,-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+input,textarea,select{font:inherit;color:inherit}
+svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.i.sm{width:15px;height:15px}
+
+/* ---------- Scene ---------- */
+#scene{position:fixed;inset:0;z-index:0}
+#scene canvas{display:block}
+#labels{position:fixed;inset:0;pointer-events:none;z-index:1}
+.vignette{position:fixed;inset:0;pointer-events:none;z-index:1;background:radial-gradient(120% 90% at 50% 45%,transparent 55%,rgba(3,6,10,.65) 100%)}
+
+/* ---------- Glass ---------- */
+.glass{background:var(--glass);-webkit-backdrop-filter:blur(28px) saturate(180%);backdrop-filter:blur(28px) saturate(180%);border:1px solid var(--stroke);box-shadow:var(--shadow),var(--hi);border-radius:var(--r-xl)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.glass{background:rgba(14,20,30,.92)}}
+.float{position:fixed;z-index:10}
+.pop{animation:pop .38s var(--spring) both}
+@keyframes pop{from{opacity:0;transform:scale(.96) translateY(6px)}to{opacity:1;transform:none}}
+
+/* island */
+#island{top:16px;left:16px;display:flex;align-items:center;gap:12px;padding:8px 10px 8px 8px}
+.logo{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-weight:700;color:#04110e;background:linear-gradient(145deg,#7cf3d9,#2bb79a);box-shadow:0 0 22px rgba(62,230,193,.35),inset 0 1px 0 rgba(255,255,255,.5)}
+.ws{display:flex;flex-direction:column;line-height:1.15;padding-right:4px}
+.ws b{font-size:14px;display:flex;align-items:center;gap:4px}
+.ws small{color:var(--muted);font-size:11.5px}
+.sep{width:1px;height:28px;background:var(--stroke)}
+.toggle{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.switch{width:40px;height:24px;border-radius:99px;background:rgba(255,255,255,.14);position:relative;transition:.25s var(--spring)}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);transition:.25s var(--spring)}
+.switch.on{background:var(--accent)}
+.switch.on::after{left:18px}
+
+/* roster */
+#roster{top:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:2px;padding:5px;overflow-x:auto;scrollbar-width:none;border-radius:99px}
+#roster.fade{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+.r-sep{width:1px;height:22px;background:var(--stroke);margin:0 4px;flex:none}
+#roster::-webkit-scrollbar{display:none}
+.chip{display:flex;align-items:center;gap:0;padding:4px;border-radius:99px;font-size:12.5px;white-space:nowrap;border:1px solid transparent;transition:background .2s,border-color .2s;flex:none}
+.chip .nm{max-width:0;overflow:hidden;opacity:0;transition:max-width .35s var(--spring),opacity .2s,margin .35s var(--spring)}
+.chip:hover .nm,.chip.sel .nm{max-width:90px;opacity:1;margin:0 4px 0 7px}
+.chip .av{width:26px;height:26px;font-size:11.5px}
+.chip:hover{background:rgba(255,255,255,.09)}
+.chip.sel{border-color:rgba(62,230,193,.5);background:var(--accent-soft)}
+.av{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:600;color:#0a1220;position:relative;flex:none}
+.av .sd{position:absolute;right:-2px;bottom:-2px;width:9px;height:9px;border-radius:50%;border:2px solid #121a26}
+.chip .eye{max-width:0;overflow:hidden;opacity:0;transition:.25s var(--spring);color:var(--muted);display:flex}
+.chip:hover .eye{max-width:20px;opacity:1;margin-right:4px}
+.chip .eye:hover{color:var(--accent)}
+
+/* stats */
+#stats{top:16px;right:16px;display:flex;align-items:center;gap:4px;padding:6px 6px 6px 8px;border-radius:99px}
+.stat{display:flex;align-items:center;gap:6px;padding:5px 9px;border-radius:99px;font-size:12.5px;color:var(--muted)}
+.stat b{font-family:var(--mono);color:var(--text);font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.clock{font-family:var(--mono);font-size:12.5px;padding:5px 10px;border-radius:99px;background:rgba(255,255,255,.06)}
+
+/* dock */
+#dock{left:16px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:4px;padding:8px;border-radius:20px}
+.dk{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;color:var(--muted);position:relative;transition:.2s var(--spring)}
+.dk:hover{background:rgba(255,255,255,.08);color:var(--text);transform:scale(1.06)}
+.dk.on{background:var(--accent-soft);color:var(--accent)}
+.dk .badge{position:absolute;top:5px;right:5px;min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:var(--failed);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center}
+.dk[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:54px;top:50%;transform:translateY(-50%);white-space:nowrap;padding:5px 9px;border-radius:8px;background:var(--glass-strong);border:1px solid var(--stroke);font-size:12px;color:var(--text);backdrop-filter:blur(20px)}
+.dock-sep{height:1px;margin:4px 6px;background:var(--stroke)}
+
+/* HQ panel */
+#hq{top:76px;right:16px;bottom:80px;width:360px;display:flex;flex-direction:column;overflow:hidden;transition:transform .45s var(--spring),opacity .3s}
+#hq.collapsed{transform:translateX(calc(100% + 24px));opacity:0;pointer-events:none}
+.hq-head{padding:16px 16px 10px;display:flex;align-items:flex-start;gap:10px}
+.hq-head h3{margin:0;font-size:15px}
+.hq-head p{margin:2px 0 0;color:var(--muted);font-size:12px}
+.ib{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;color:var(--muted);flex:none}
+.ib:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.seg{display:flex;margin:0 16px 10px;padding:3px;border-radius:11px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.05)}
+.seg button{flex:1;padding:6px 0;border-radius:8px;font-size:12.5px;color:var(--muted);font-weight:500;transition:.2s}
+.seg button.on{background:rgba(255,255,255,.12);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.3),var(--hi)}
+.hq-body{flex:1;overflow:auto;padding:4px 12px 16px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.12) transparent}
+.grp{margin:6px 0 12px}
+.grp-h{display:flex;align-items:center;gap:8px;padding:6px 6px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.grp-h .n{margin-left:auto;font-family:var(--mono);color:var(--text);background:rgba(255,255,255,.08);padding:1px 7px;border-radius:99px;font-size:11px}
+.card{display:block;width:100%;text-align:left;padding:10px 12px;border-radius:var(--r-md);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.05);margin-bottom:6px;transition:.2s var(--spring)}
+.card:hover{background:rgba(255,255,255,.08);transform:translateY(-1px)}
+.card b{display:block;font-weight:500;font-size:13px}
+.card small{color:var(--muted);font-size:11.5px}
+.card .row{display:flex;align-items:center;gap:8px}
+.pill{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:99px;font-family:var(--mono);letter-spacing:.02em}
+.p-late{background:rgba(255,93,108,.16);color:#ff8d98}.p-risk{background:rgba(245,184,75,.16);color:#f8c977}
+.p-review{background:rgba(245,184,75,.16);color:#f8c977}.p-doing{background:rgba(62,230,193,.14);color:#7cf3d9}
+.p-ready{background:rgba(122,162,255,.16);color:#a6c0ff}.p-done{background:rgba(255,255,255,.08);color:var(--muted)}
+.p-failed{background:rgba(255,93,108,.16);color:#ff8d98}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 13px;border-radius:11px;font-size:13px;font-weight:500;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);transition:.2s var(--spring)}
+.btn:hover{background:rgba(255,255,255,.14)}
+.btn.primary{background:linear-gradient(180deg,rgba(62,230,193,.9),rgba(37,186,154,.9));color:#04140f;border-color:rgba(255,255,255,.25);box-shadow:0 6px 20px rgba(62,230,193,.25),inset 0 1px 0 rgba(255,255,255,.4)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.sm{padding:5px 10px;font-size:12px;border-radius:9px}
+.btn.danger{color:#ff9aa3}
+
+/* toolbar */
+#toolbar{bottom:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:2px;padding:6px;border-radius:18px}
+.tb{height:40px;min-width:40px;padding:0 10px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:7px;color:var(--muted);font-size:12.5px;font-weight:500;transition:.2s var(--spring)}
+.tb:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.tb.on{background:var(--accent-soft);color:var(--accent)}
+.tb-sep{width:1px;height:22px;background:var(--stroke);margin:0 4px}
+kbd{font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:5px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);color:var(--faint)}
+
+/* legend */
+#legend{left:16px;bottom:16px;display:flex;flex-direction:column;gap:6px;padding:12px 14px;font-size:12px;color:var(--muted);border-radius:var(--r-lg)}
+#legend div{display:flex;align-items:center;gap:8px}
+#legend .h{color:var(--faint);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+
+/* Mika */
+#mikaFab{right:16px;bottom:16px;display:flex;align-items:center;gap:10px;padding:8px 16px 8px 8px;border-radius:99px;transition:.3s var(--spring)}
+#mikaFab:hover{transform:translateY(-2px)}
+#mikaFab .av{width:32px;height:32px;font-size:14px;background:linear-gradient(145deg,#c4b5ff,#7a63ff);color:#fff}
+#mikaFab b{display:block;font-size:13px}#mikaFab small{color:var(--muted);font-size:11px}
+#chat{right:16px;bottom:76px;width:360px;height:460px;z-index:15;display:none;flex-direction:column;overflow:hidden}
+#chat.show{display:flex}
+.chat-h{display:flex;align-items:center;gap:10px;padding:12px 12px 10px 14px;border-bottom:1px solid var(--stroke)}
+.chat-h b{display:block}.chat-h small{color:var(--muted);font-size:11.5px}
+.msgs{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:82%;padding:8px 12px;border-radius:16px;font-size:13px;line-height:1.4}
+.msg.them{background:rgba(255,255,255,.08);border-bottom-left-radius:5px}
+.msg.me{align-self:flex-end;background:linear-gradient(180deg,#3ee6c1,#27b998);color:#04140f;border-bottom-right-radius:5px}
+.compose{display:flex;gap:8px;padding:10px;border-top:1px solid var(--stroke)}
+.input{flex:1;width:100%;padding:9px 12px;border-radius:11px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08);outline:none}
+.input:focus{border-color:rgba(62,230,193,.5);box-shadow:0 0 0 3px rgba(62,230,193,.12)}
+textarea.input{resize:vertical;min-height:70px}
+
+/* drawer */
+#drawer{top:76px;right:16px;bottom:80px;width:360px;z-index:12;display:none;flex-direction:column;overflow:hidden}
+#drawer.show{display:flex}
+.d-hero{padding:18px 16px 14px;display:flex;gap:12px;align-items:center;position:relative}
+.d-hero .big{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;font-size:20px;font-weight:700;color:#0a1220;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+.d-hero h3{margin:0;font-size:17px}
+.d-hero p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.d-hero .x{position:absolute;top:12px;right:12px}
+.statusline{margin:0 16px 12px;padding:10px 12px;border-radius:var(--r-md);background:rgba(255,255,255,.05);display:flex;align-items:center;gap:10px;font-size:13px}
+.d-actions{display:flex;gap:6px;padding:0 16px 12px;flex-wrap:wrap}
+.d-body{flex:1;overflow:auto;padding:0 12px 16px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:12.5px;padding:4px 6px 10px}
+.kv span{color:var(--muted)}
+.bar{height:6px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#2bb79a,#7cf3d9)}
+
+/* modal */
+#scrim{position:fixed;inset:0;z-index:30;background:rgba(3,6,10,.35);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:24px}
+#scrim.show{display:flex}
+#modal{width:min(1040px,100%);height:min(640px,100%);display:grid;grid-template-columns:1.35fr 1fr;overflow:hidden;background:var(--glass-strong)}
+.m-left{display:flex;flex-direction:column;border-right:1px solid var(--stroke);min-width:0}
+.m-head{padding:16px 18px 10px}
+.m-head small{font-family:var(--mono);color:var(--faint);font-size:11px}
+.m-head h2{margin:2px 0 6px;font-size:18px}
+.m-tabs{display:inline-flex;margin:0 18px 12px;padding:3px;border-radius:11px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.05)}
+.m-tabs button{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;font-size:12.5px;font-weight:500;color:var(--muted);transition:.2s}
+.m-tabs button.on{background:rgba(255,255,255,.12);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.3),var(--hi)}
+.m-out{flex:1;overflow:auto;padding:4px 18px 18px;font-size:13.5px;color:#d7e1ec}
+.m-out h4{margin:14px 0 6px;font-size:13px;color:var(--text)}
+.m-out code{font-family:var(--mono);font-size:12px;background:rgba(255,255,255,.07);padding:1px 5px;border-radius:5px}
+.diff{font-family:var(--mono);font-size:12px;border-radius:12px;overflow:hidden;border:1px solid var(--stroke);background:rgba(0,0,0,.3)}
+.diff .fh{padding:7px 12px;background:rgba(255,255,255,.05);color:var(--muted);display:flex;justify-content:space-between}
+.diff div.l{padding:1px 12px;white-space:pre}
+.diff .add{background:rgba(62,230,193,.10);color:#9ff5e0}
+.diff .del{background:rgba(255,93,108,.10);color:#ffadb4}
+.m-right{display:flex;flex-direction:column;min-width:0}
+.m-right .scroll{flex:1;overflow:auto;padding:16px 18px}
+.sect{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600;margin:14px 0 8px}
+.sect:first-child{margin-top:0}
+.q{padding:12px;border-radius:var(--r-md);background:rgba(255,255,255,.05);margin-bottom:8px}
+.q p{margin:0 0 8px;font-size:13px}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opt{padding:5px 10px;border-radius:99px;font-size:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08)}
+.opt.on{background:var(--accent-soft);border-color:rgba(62,230,193,.55);color:var(--accent)}
+.m-foot{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--stroke);justify-content:flex-end}
+
+/* standup / music / banners */
+#standup{left:50%;bottom:80px;transform:translateX(-50%);width:min(560px,calc(100vw - 32px));padding:14px 16px;display:none}
+#standup.show{display:block}
+#standup h4{margin:0 0 8px;display:flex;align-items:center;gap:8px;font-size:14px}
+.su-line{display:flex;gap:10px;padding:6px 0;font-size:12.5px;border-top:1px solid rgba(255,255,255,.05);animation:pop .35s var(--spring) both}
+.su-line b{min-width:56px}
+.su-line span{color:var(--muted)}
+#music{bottom:72px;left:50%;transform:translateX(120px);width:260px;padding:14px;display:none}
+#music.show{display:block}
+.eq{display:flex;align-items:flex-end;gap:3px;height:22px}
+.eq i{width:4px;border-radius:2px;background:var(--accent);height:4px;transition:height .15s}
+input[type=range]{width:100%;accent-color:var(--accent)}
+#banner{top:76px;left:50%;transform:translateX(-50%);padding:10px 16px;display:none;align-items:center;gap:10px;font-size:13px;border-radius:99px}
+#banner.show{display:flex}
+#follow{top:76px;left:50%;transform:translateX(-50%);padding:6px 6px 6px 14px;display:none;align-items:center;gap:10px;font-size:13px;border-radius:99px}
+#follow.show{display:flex}
+.toasts{position:fixed;top:76px;left:84px;z-index:40;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{padding:10px 14px;font-size:12.5px;display:flex;align-items:center;gap:10px;max-width:340px;border-radius:14px;animation:pop .35s var(--spring) both}
+.toast.out{animation:fade .4s forwards}
+@keyframes fade{to{opacity:0;transform:translateY(-6px)}}
+#tip{position:fixed;z-index:20;pointer-events:none;padding:7px 11px;font-size:12px;border-radius:11px;display:none;max-width:240px}
+#tip b{display:block;font-size:12.5px}#tip small{color:var(--muted)}
+
+/* 3D labels */
+.tag{display:flex;align-items:center;gap:6px;padding:3px 9px 3px 6px;border-radius:99px;background:rgba(12,18,28,.62);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:11.5px;font-weight:600;white-space:nowrap;transform:translateY(-6px);transition:opacity .2s}
+.tag em{font-style:normal;font-weight:400;color:var(--muted);max-width:0;overflow:hidden;transition:max-width .35s var(--spring)}
+.tag.hot em{max-width:220px}
+.tag.hot{border-color:rgba(62,230,193,.5)}
+body.nolabels .tag:not(.hot){opacity:0}
+.tag.speak{border-color:var(--accent);box-shadow:0 0 18px rgba(62,230,193,.45)}
+.zone-tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:rgba(235,242,250,.55);text-transform:uppercase;white-space:nowrap}
+
+/* levels & new project */
+#levels{top:84px;left:16px;padding:6px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:4px;width:60px}
+#levels .lv-h{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:600;padding-top:2px}
+.lv{width:46px;height:40px;border-radius:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;font-size:13px;color:var(--muted);line-height:1.1;transition:.2s var(--spring)}
+.lv small{font-size:9.5px;font-weight:500;color:var(--faint)}
+.lv:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.lv.on{background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 0 0 1px rgba(62,230,193,.4)}
+.lv.ghost{border:1px dashed rgba(255,255,255,.18);cursor:default;opacity:.55}
+.lv.ghost:hover{background:none;color:var(--muted)}
+.ghost-btn{pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 14px;border-radius:14px;background:rgba(12,18,28,.55);border:1px dashed rgba(62,230,193,.6);color:var(--accent);font:600 12.5px Inter,sans-serif;cursor:pointer;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:transform .25s var(--spring),background .2s;animation:breathe 2.4s ease-in-out infinite}
+.ghost-btn span{display:flex;align-items:center;gap:6px}
+.ghost-btn small{color:var(--muted);font:500 10.5px var(--mono)}
+.ghost-btn:hover{background:rgba(62,230,193,.16);transform:scale(1.05)}
+@keyframes breathe{50%{box-shadow:0 0 24px rgba(62,230,193,.35)}}
+#npScrim{position:fixed;inset:0;z-index:30;background:rgba(3,6,10,.35);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:24px}
+#npScrim.show{display:flex}
+#np{width:min(560px,100%);max-height:100%;overflow:auto;padding:20px 20px 16px;background:var(--glass-strong)}
+.np-h{display:flex;gap:12px;align-items:center}
+.np-h .big{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;color:#04140f;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+.np-h h3{margin:0;font-size:17px}.np-h p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.field{margin-top:16px}
+.field>label,.field>.lbl{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600;margin-bottom:8px}
+.sw{display:flex;gap:10px}
+.sw button{width:26px;height:26px;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(0,0,0,.25);transition:.2s var(--spring)}
+.sw button.on{outline:2px solid #fff;outline-offset:2px;transform:scale(1.08)}
+select.input{appearance:none;background:rgba(0,0,0,.25) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23aab6c6' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center}
+select.input option{background:#121a26}
+.place{display:flex;gap:14px;align-items:center;margin-top:18px;padding:12px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06)}
+.place svg.map{width:150px;height:112px;flex:none}
+.place b{display:block;font-size:13.5px;margin-bottom:2px}.place small{color:var(--muted);font-size:12px;line-height:1.45;display:block}
+.place .tagnew{display:inline-block;margin-top:6px;font:600 10.5px var(--mono);padding:2px 7px;border-radius:99px;background:rgba(245,184,75,.16);color:#f8c977}
+.np-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+body.editing #scene{cursor:grab}
+body.editing #legend::after{content:"Edit layout: drag desks, sofas & plants";display:block;margin-top:6px;color:var(--accent)}
+@media (max-width:1280px){#legend{display:none}.tb span,.tb kbd{display:none}}
+@media (max-width:900px){#hq{width:auto;left:16px}#legend{display:none}#dock{top:auto;bottom:80px;transform:none}.tb span{display:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body class="hq-open">
+<div id="scene"></div>
+<div id="labels"></div>
+<div class="vignette"></div>
+
+<!-- Island -->
+<div id="island" class="glass float">
+  <div class="logo">N</div>
+  <div class="ws"><b>Noami Studio <svg class="i sm" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></b><small>multica.ai · Virtual Office</small></div>
+  <div class="sep"></div>
+  <button class="toggle" id="openToggle" title="Open / close the office (pauses agent work)"><span id="openLabel">Office open</span><span class="switch on" id="openSwitch"></span></button>
+</div>
+
+<!-- Roster -->
+<div id="roster" class="glass float"></div>
+
+<!-- Stats -->
+<div id="stats" class="glass float">
+  <div class="stat"><span class="dot" style="background:var(--working)"></span>Working <b id="sWork">0</b></div>
+  <div class="stat"><span class="dot" style="background:var(--review)"></span>Review <b id="sRev">0</b></div>
+  <div class="stat"><span class="dot" style="background:var(--failed)"></span>Failed <b id="sFail">0</b></div>
+  <div class="stat"><svg class="i sm" viewBox="0 0 24 24" data-i="server"></svg><b id="sRt">0/0</b></div>
+  <div class="clock" id="clock">--:--</div>
+  <button class="ib" id="hqToggle" title="Toggle HQ panel"><svg class="i" viewBox="0 0 24 24" data-i="panel"></svg></button>
+</div>
+
+<!-- Dock -->
+<nav id="dock" class="glass float">
+  <button class="dk on" data-tip="Office"><svg class="i" viewBox="0 0 24 24" data-i="office"></svg></button>
+  <button class="dk" data-tip="Task Board" data-nav><svg class="i" viewBox="0 0 24 24" data-i="board"></svg></button>
+  <button class="dk" data-tip="Team" data-nav><svg class="i" viewBox="0 0 24 24" data-i="team"></svg></button>
+  <button class="dk" data-tip="Messages" data-nav><svg class="i" viewBox="0 0 24 24" data-i="chat"></svg><span class="badge">2</span></button>
+  <button class="dk" data-tip="Inbox" id="dkInbox"><svg class="i" viewBox="0 0 24 24" data-i="bell"></svg><span class="badge">5</span></button>
+  <div class="dock-sep"></div>
+  <button class="dk" data-tip="New project" id="dkNew"><svg class="i" viewBox="0 0 24 24" data-i="plus"></svg></button>
+</nav>
+
+<!-- HQ -->
+<aside id="hq" class="glass float">
+  <div class="hq-head">
+    <div style="flex:1"><h3>Headquarters</h3><p>What needs you, your inbox, and scheduled playbooks.</p></div>
+    <button class="ib" id="hqClose" title="Collapse"><svg class="i" viewBox="0 0 24 24" data-i="x"></svg></button>
+  </div>
+  <div class="seg" id="hqTabs"><button class="on" data-t="attn">Attention</button><button data-t="inbox">Inbox</button><button data-t="play">Playbooks</button></div>
+  <div class="hq-body" id="hqBody"></div>
+</aside>
+
+<!-- Drawer -->
+<aside id="drawer" class="glass float pop"></aside>
+
+<!-- Toolbar -->
+<div id="toolbar" class="glass float">
+  <button class="tb" id="tRotL" title="Rotate left (Q)"><svg class="i" viewBox="0 0 24 24" data-i="rotL"></svg></button>
+  <button class="tb" id="tRotR" title="Rotate right (E)"><svg class="i" viewBox="0 0 24 24" data-i="rotR"></svg></button>
+  <button class="tb" id="tZoomOut" title="Zoom out"><svg class="i" viewBox="0 0 24 24" data-i="minus"></svg></button>
+  <button class="tb" id="tZoomIn" title="Zoom in"><svg class="i" viewBox="0 0 24 24" data-i="plus"></svg></button>
+  <button class="tb" id="tReset" title="Reset view (R)"><svg class="i" viewBox="0 0 24 24" data-i="target"></svg></button>
+  <button class="tb on" id="tLabels" title="Labels (L)"><svg class="i" viewBox="0 0 24 24" data-i="tag"></svg></button>
+  <div class="tb-sep"></div>
+  <button class="tb" id="tWalk" title="Walk around with WASD"><svg class="i" viewBox="0 0 24 24" data-i="move"></svg><span>Walk</span> <kbd>WASD</kbd></button>
+  <button class="tb" id="tStandup" title="Gather agents for a standup"><svg class="i" viewBox="0 0 24 24" data-i="calendar"></svg><span>Standup</span></button>
+  <button class="tb" id="tMusic" title="Ambient music"><svg class="i" viewBox="0 0 24 24" data-i="music"></svg><span>Music</span></button>
+  <button class="tb" id="tEdit" title="Edit layout"><svg class="i" viewBox="0 0 24 24" data-i="pencil"></svg><span>Edit</span></button>
+</div>
+
+<div id="legend" class="glass float">
+  <div class="h">Status</div>
+  <div><span class="dot" style="background:var(--working)"></span>Working</div>
+  <div><span class="dot" style="background:var(--review)"></span>Needs review</div>
+  <div><span class="dot" style="background:var(--failed)"></span>Failed</div>
+  <div><span class="dot" style="background:var(--ready)"></span>Ready / queued</div>
+  <div><span class="dot" style="background:var(--break)"></span>On break</div>
+  <div><span class="dot" style="background:var(--off)"></span>Laptop off</div>
+</div>
+
+<button id="mikaFab" class="glass float"><span class="av">✦</span><span style="text-align:left"><b>Ask Mika</b><small>Office manager</small></span></button>
+<div id="chat" class="glass float pop">
+  <div class="chat-h"><span class="av" id="chatAv" style="width:32px;height:32px">✦</span><div style="flex:1"><b id="chatName">Mika</b><small id="chatSub">Office manager · online</small></div><button class="ib" id="chatClose"><svg class="i" viewBox="0 0 24 24" data-i="x"></svg></button></div>
+  <div class="msgs" id="msgs"></div>
+  <form class="compose" id="compose"><input class="input" id="chatIn" placeholder="Message… (type @ to mention)" autocomplete="off" /><button class="btn primary sm" style="padding:0 12px"><svg class="i sm" viewBox="0 0 24 24" data-i="send"></svg></button></form>
+</div>
+
+<div id="standup" class="glass float pop"></div>
+<div id="music" class="glass float pop">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <button class="btn primary sm" id="mPlay" style="width:36px;height:36px;padding:0;border-radius:50%"><svg class="i sm" viewBox="0 0 24 24" data-i="play"></svg></button>
+    <div style="flex:1"><b style="font-size:13px">Midnight lo-fi</b><br><small style="color:var(--muted);font-size:11.5px" id="mChord">generative · 72 bpm</small></div>
+    <div class="eq" id="eq"><i></i><i></i><i></i><i></i><i></i></div>
+  </div>
+  <input type="range" id="mVol" min="0" max="100" value="45" />
+</div>
+<div id="banner" class="glass float"><span class="dot" style="background:var(--off)"></span><span>Office closed — agents are paused and went home. <b>4 tasks parked.</b></span></div>
+<div id="follow" class="glass float"><svg class="i sm" viewBox="0 0 24 24" data-i="eye"></svg><span id="followTxt">Following</span><button class="btn sm" id="followStop">Stop <kbd>Esc</kbd></button></div>
+<div id="levels" class="glass float"><div class="lv-h">Floor</div><div id="lvBtns" style="display:flex;flex-direction:column;gap:4px"></div></div>
+<div id="npScrim"><form id="np" class="glass pop" autocomplete="off"></form></div>
+<div class="toasts" id="toasts"></div>
+<div id="tip" class="glass"></div>
+<div id="scrim"><div id="modal" class="glass pop"></div></div>
+
+<script>
+/* ---------- Icons (lucide-style paths, inline) ---------- */
+const ICONS={
+ office:'<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/>',
+ board:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 7v7M12 7v4M16 7v9"/>',
+ team:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+ chat:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+ bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+ plus:'<path d="M5 12h14M12 5v14"/>', minus:'<path d="M5 12h14"/>', x:'<path d="M18 6 6 18M6 6l12 12"/>',
+ rotL:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+ rotR:'<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+ target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M22 12h-4M6 12H2M12 6V2M12 22v-4"/>',
+ tag:'<path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.41 0l8.59-8.59a1 1 0 0 0 0-1.41z"/><circle cx="7" cy="7" r="1.5"/>',
+ move:'<path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/>',
+ calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+ music:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+ pencil:'<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
+ eye:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+ server:'<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/>',
+ panel:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/>',
+ send:'<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+ play:'<path d="M7 4l13 8-13 8z"/>', pause:'<path d="M7 4h4v16H7zM14 4h4v16h-4z"/>',
+ alert:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+ clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+ check:'<path d="M20 6 9 17l-5-5"/>',
+ file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
+ person:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+ git:'<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7M6 9v12"/>',
+ list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+ power:'<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
+ spark:'<path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2z"/>',
+};
+const ic=(n,cls='i sm')=>`<svg class="${cls}" viewBox="0 0 24 24">${ICONS[n]||''}</svg>`;
+document.querySelectorAll('svg[data-i]').forEach(s=>s.innerHTML=ICONS[s.dataset.i]||'');
+</script>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const $=s=>document.querySelector(s);
+const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* =========================================================
+   MOCK DATA  (shape mirrors lib/office.ts from kantor-virtual)
+   ========================================================= */
+const COLORS={working:'#3ee6c1',review:'#f5b84b',failed:'#ff5d6c',ready:'#7aa2ff',break:'#a08cff',off:'#4b5a70',home:'#4b5a70',closed:'#4b5a70',here:'#3ee6c1',away:'#4b5a70'};
+const STATE_LABEL={working:'Working',review:'Needs review',failed:'Failed',ready:'Ready',break:'On break',off:'Laptop off',home:'Gone home',closed:'Office closed',here:'In the office',away:'Away'};
+const AV_COL=['#7cf3d9','#a6c0ff','#c4b5ff','#f8c977','#ff9aa3','#9be7ff','#b8f28c','#ffd1a6','#e3b5ff','#8ee0c8'];
+
+const ZONES={
+  team:{name:'Team desks',x0:-15,x1:-6,z0:-5.6,z1:-2.1,tint:'#7aa2ff'},
+  web:{name:'Website Revamp',x0:-3,x1:4.2,z0:-9.2,z1:-2.2,tint:'#3ee6c1',project:true,progress:[7,12]},
+  cmp:{name:'Campaign Q4',x0:6.2,x1:13.2,z0:-10.2,z1:-3,tint:'#7aa2ff',project:true,progress:[4,9]},
+  dat:{name:'Data Pipeline',x0:-3,x1:4.2,z0:-0.2,z1:4.2,tint:'#a08cff',project:true,progress:[3,5]},
+  meet:{name:'Meeting room',x0:6.6,x1:13.2,z0:-0.2,z1:4},
+  lounge:{name:'Lounge',x0:-15,x1:-6,z0:3.8,z1:10.2,tint:'#a08cff'},
+  srv:{name:'Runtimes',x0:-3,x1:5.2,z0:5.6,z1:10.2,tint:'#ff5d6c'},
+};
+
+// Floors: each level sits LY units above the previous one
+const LY=4.8;
+let viewLevel=1;
+const levelY=l=>(l-1)*LY;
+
+const AGENTS=[
+ {id:'arka',name:'Arka',role:'Frontend engineer',engine:'Claude',runtime:'beny-mbp',zone:'web',state:'working',bubble:'Building the pricing section'},
+ {id:'lumi',name:'Lumi',role:'Copywriter',engine:'Claude',runtime:'beny-mbp',zone:'web',state:'review',bubble:'Hero copy v2 ready for review'},
+ {id:'kode',name:'Kode',role:'QA engineer',engine:'Codex',runtime:'sarah-air',zone:'web',state:'working',bubble:'Running the regression suite'},
+ {id:'nara',name:'Nara',role:'Social media',engine:'Claude',runtime:'studio-srv',zone:'cmp',state:'working',bubble:'Drafting 5 IG carousels'},
+ {id:'vex',name:'Vex',role:'Visual designer',engine:'Codex',runtime:'sarah-air',zone:'cmp',state:'review',bubble:'Carousel set ready'},
+ {id:'juno',name:'Juno',role:'Data analyst',engine:'Claude',runtime:'dimas-pc',zone:'cmp',state:'off',bubble:'Laptop off · Dimas-PC'},
+ {id:'sora',name:'Sora',role:'ETL engineer',engine:'Claude',runtime:'studio-srv',zone:'dat',state:'ready',bubble:'2 tasks queued'},
+ {id:'rhea',name:'Rhea',role:'Researcher',engine:'Codex',runtime:'studio-srv',zone:'dat',state:'failed',bubble:'AI quota used up · resets 14:00'},
+ {id:'mika',name:'Mika',role:'Office manager',engine:'Claude',runtime:'studio-srv',zone:'lounge',state:'ready',bubble:'Ask me anything'},
+ {id:'pixel',name:'Pixel',role:'Illustrator',engine:'Claude',runtime:'beny-mbp',zone:'lounge',state:'break',bubble:'No project right now'},
+];
+const HUMANS=[
+ {id:'beny',name:'Beny',role:'Owner',state:'here',bubble:'In the office',shirt:'#3ee6c1'},
+ {id:'sarah',name:'Sarah',role:'Admin',state:'here',bubble:'In the office',shirt:'#c4b5ff'},
+ {id:'dimas',name:'Dimas',role:'Member',state:'away',bubble:'Last seen 2h ago',shirt:'#f8c977'},
+ {id:'rani',name:'Rani',role:'Member',state:'away',bubble:'Not in yet',shirt:'#ff9aa3'},
+];
+const RUNTIMES=[
+ {id:'beny-mbp',name:'Beny-MacBook',owner:'Beny',provider:'claude',online:true,quota:'72% left'},
+ {id:'sarah-air',name:'Sarah-Air',owner:'Sarah',provider:'codex',online:true,quota:'58% left'},
+ {id:'studio-srv',name:'Studio-Server',owner:'Beny',provider:'claude',online:true,quota:'Used up · resets 14:00',quotaOut:true},
+ {id:'dimas-pc',name:'Dimas-PC',owner:'Dimas',provider:'claude',online:false,quota:'—'},
+];
+const TASKS=[
+ {id:'t1',key:'NOA-41',title:'Pricing section build',agent:'arka',zone:'web',status:'in_progress',due:'Tomorrow',flag:null,diff:true},
+ {id:'t2',key:'NOA-38',title:'Hero copy v2',agent:'lumi',zone:'web',status:'in_review',due:'2 days late',flag:'late'},
+ {id:'t3',key:'NOA-44',title:'Regression suite · checkout',agent:'kode',zone:'web',status:'in_progress',due:'Fri',flag:null},
+ {id:'t4',key:'NOA-52',title:'Instagram carousel ×5',agent:'vex',zone:'cmp',status:'in_review',due:'Today',flag:'risk'},
+ {id:'t5',key:'NOA-53',title:'Caption ideas for teaser',agent:'nara',zone:'cmp',status:'in_progress',due:'Mon',flag:null},
+ {id:'t6',key:'NOA-49',title:'Q4 KPI deck',agent:'juno',zone:'cmp',status:'todo',due:'Today',flag:'risk'},
+ {id:'t7',key:'NOA-60',title:'Weekly ETL report',agent:'sora',zone:'dat',status:'todo',due:'Wed',flag:null},
+ {id:'t8',key:'NOA-61',title:'Scrape competitor prices',agent:'rhea',zone:'dat',status:'todo',due:'Today',flag:'risk',failed:'AI quota used up · resets 14:00'},
+ {id:'t9',key:'NOA-35',title:'Landing page build',agent:'arka',zone:'web',status:'in_review',due:'Yesterday',flag:'late',diff:true},
+ {id:'h1',key:'NOA-57',title:'Approve brand palette',human:'Beny',zone:'cmp',status:'todo',due:'Today',flag:'risk'},
+ {id:'h2',key:'NOA-58',title:'Upload product photos',human:'Sarah',zone:'web',status:'todo',due:'Tomorrow',flag:null},
+];
+const INBOX=[
+ {t:'Lumi asked you a question',d:'Hero copy v2 · "Formal or playful tone?"',w:'4m',k:'chat'},
+ {t:'Vex needs your review',d:'Instagram carousel ×5',w:'12m',k:'file'},
+ {t:'Rhea failed a run',d:'AI quota used up on Studio-Server',w:'25m',k:'alert'},
+ {t:'Sarah mentioned you',d:'"@Beny can you approve the palette today?"',w:'1h',k:'person'},
+ {t:'Arka finished a task',d:'Landing page build → Needs review',w:'2h',k:'check'},
+];
+const PLAYBOOKS=[
+ {t:'Daily morning briefing',d:'Every day at 09:00. Priorities, blockers, and what changed overnight.'},
+ {t:'Nightly code review digest',d:'Every night at 00:00. Review the day and flag risky changes.'},
+ {t:'Hourly health check',d:'Every 60 minutes. Runtime health, failures, anything that needs you.'},
+ {t:'Weekly progress report',d:'Mondays at 08:00. Wins, unfinished work and next steps.'},
+];
+
+/* =========================================================
+   RENDERER / SCENE / CAMERA
+   ========================================================= */
+const host=$('#scene');
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5)); // retina at 2x quadruples fill cost for little visible gain
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.autoUpdate=false; // refreshed ~15x/s in the loop instead of every frame
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.05;
+host.appendChild(renderer.domElement);
+
+const labelRenderer=new CSS2DRenderer({element:$('#labels')});
+labelRenderer.setSize(innerWidth,innerHeight);
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color('#070b12');
+scene.fog=new THREE.Fog('#070b12',70,150);
+
+let VIEW=30;
+const camera=new THREE.OrthographicCamera(-1,1,1,-1,-200,400);
+const CAM_OFF=new THREE.Vector3(34,32,34);
+const HOME_TARGET=new THREE.Vector3(-.5,-1.8,.5);
+camera.position.copy(HOME_TARGET).add(CAM_OFF);
+camera.zoom=1;
+
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.target.copy(HOME_TARGET);
+controls.enableDamping=true; controls.dampingFactor=.08;
+controls.minPolarAngle=.55; controls.maxPolarAngle=1.12;
+controls.minZoom=.55; controls.maxZoom=4;
+controls.zoomSpeed=1.1; controls.screenSpacePanning=false;
+controls.mouseButtons={LEFT:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.PAN};
+
+function layoutCamera(){
+  const w=innerWidth,h=innerHeight,a=w/h;
+  const panelW=(document.body.classList.contains('hq-open')&&w>900)?392:0;
+  VIEW=Math.max(22,Math.min(44,35/((w-panelW-90)/h)));
+  camera.left=-VIEW*a/2;camera.right=VIEW*a/2;camera.top=VIEW/2;camera.bottom=-VIEW/2;
+  // keep the office centred in the area not covered by the floating HQ panel
+  const panelOpen=document.body.classList.contains('hq-open')&&w>900;
+  const shift=panelOpen?188:0;
+  camera.setViewOffset(w,h,shift,0,w,h);
+  camera.updateProjectionMatrix();
+}
+layoutCamera();
+
+const composer=new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene,camera));
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth/2,innerHeight/2),.75,.55,.82);
+{const set=bloom.setSize.bind(bloom);bloom.setSize=(w,h)=>set(w/2,h/2)} // glow is blurry anyway: half-res bloom looks the same
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+// keep the roster inside the empty space between the island and the stats pill
+function fitRoster(){
+  const r=$('#roster'),a=$('#island').getBoundingClientRect(),b=$('#stats').getBoundingClientRect();
+  const gap=b.left-a.right-32;
+  r.style.display=gap<120?'none':'flex';if(gap<120)return;
+  r.style.maxWidth=gap+'px';r.style.left=(a.right+b.left)/2+'px';
+  r.classList.toggle('fade',r.scrollWidth>r.clientWidth+1);
+  const sel=r.querySelector('.sel');if(sel)r.scrollTo({left:sel.offsetLeft-r.clientWidth/2+sel.offsetWidth/2,behavior:'smooth'});
+}
+addEventListener('resize',()=>{fitRoster();
+  renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);
+  labelRenderer.setSize(innerWidth,innerHeight);layoutCamera();
+});
+
+/* lights */
+const hemi=new THREE.HemisphereLight('#8fb1dc','#0a0f18',.85); scene.add(hemi);
+const sun=new THREE.DirectionalLight('#e3ecff',1.7);
+sun.position.set(14,26,10); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-24,right:24,top:24,bottom:-24,near:1,far:80});
+sun.shadow.bias=-.0004; sun.shadow.normalBias=.02;
+scene.add(sun);
+const rim=new THREE.DirectionalLight('#3ee6c1',.35); rim.position.set(-20,8,-14); scene.add(rim);
+
+/* =========================================================
+   MATERIALS / HELPERS
+   ========================================================= */
+const std=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.55,metalness:.35,...o});
+const glow=(c,k=2.2,o={})=>{const m=new THREE.MeshBasicMaterial({color:new THREE.Color(c).multiplyScalar(k),toneMapped:false,...o});return m};
+const M={
+  floor:null, slabSide:std('#2a3950',{roughness:.4,metalness:.6}), slabSide2:std('#1d2838',{roughness:.45,metalness:.6}),
+  desk:std('#2c3a50',{roughness:.45,metalness:.5}), deskTop:std('#3a4b66',{roughness:.35,metalness:.45}),
+  dark:std('#0d131c',{roughness:.6}), chair:std('#18212f',{roughness:.7}), chairAcc:std('#2b3a52'),
+  bot:std('#8697b0',{roughness:.3,metalness:.75}), botDark:std('#2b384c',{roughness:.4,metalness:.6}),
+  skin:std('#e2b995',{metalness:0,roughness:.8}), hair:std('#1a1410',{metalness:0,roughness:.9}), pants:std('#1c2433',{metalness:.1}),
+  glassBand:new THREE.MeshStandardMaterial({color:'#2fd6b4',transparent:true,opacity:.16,emissive:'#0b5d52',emissiveIntensity:.9,roughness:.1,metalness:.1,depthWrite:false,side:THREE.DoubleSide}),
+  rail:new THREE.MeshStandardMaterial({color:'#7fe9d3',transparent:true,opacity:.10,roughness:.05,metalness:.2,depthWrite:false,side:THREE.DoubleSide}),
+  plant:std('#2a7d68',{metalness:0,roughness:.8,flatShading:true}), plant2:std('#3a9b7f',{metalness:0,roughness:.8,flatShading:true}),
+  pot:std('#c8d3e2',{metalness:.1,roughness:.5}), sofa:std('#2a3a55',{metalness:.05,roughness:.85}), cushion:std('#3b5577',{metalness:.05,roughness:.9}),
+  rug:std('#121b29',{metalness:0,roughness:1}), white:std('#d9e2ee',{metalness:.1,roughness:.4}),
+};
+// Geometry cache: identical shapes share one GPU buffer instead of one per object.
+const _gc=new Map();
+const gcache=(key,make)=>{let g=_gc.get(key);if(!g){g=make();_gc.set(key,g)}return g};
+const HIT_MAT=new THREE.MeshBasicMaterial();
+const RB=(w,h,d,r=.05,s=2)=>gcache(`rb${w},${h},${d},${r},${s}`,()=>new RoundedBoxGeometry(w,h,d,s,Math.min(r,w/2-.001,h/2-.001,d/2-.001)));
+const GEO={};
+for(const n of ['Box','Cylinder','Sphere','Icosahedron','Plane','Ring','Octahedron','Torus'])GEO[n]=(...a)=>gcache(n+a.join(','),()=>new THREE[n+'Geometry'](...a));
+// merge many static parts into one mesh per material
+function mergeParts(parts){
+  const by=new Map();
+  for(const [geo,mat,x,y,z] of parts){const g=geo.index?geo.toNonIndexed():geo.clone();g.translate(x,y,z);(by.get(mat)||by.set(mat,[]).get(mat)).push(g)}
+  return [...by].map(([mat,list])=>{const m=mergeGeometries(list,false);list.forEach(g=>g.dispose());return [m,mat]});
+}
+function mesh(geo,mat,x=0,y=0,z=0,parent){const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);if(!geo.boundingSphere)geo.computeBoundingSphere();m.castShadow=geo.boundingSphere.radius>.2;m.receiveShadow=true;parent&&parent.add(m);return m}
+
+/* floor grid texture: one cell per world unit */
+(function(){
+  const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
+  g.fillStyle='#152031';g.fillRect(0,0,128,128);
+  g.strokeStyle='rgba(140,170,210,.10)';g.lineWidth=2;g.strokeRect(0,0,128,128);
+  g.fillStyle='rgba(140,170,210,.05)';g.fillRect(0,0,128,128);
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;
+  M.floor=new THREE.MeshStandardMaterial({map:t,roughness:.55,metalness:.4});
+})();
+
+/* =========================================================
+   BUILDING (stacked slabs + glass bands, like the reference)
+   ========================================================= */
+const FLOOR=[[-16,-6.4],[-4,-6.4],[-4,-11.2],[14.2,-11.2],[14.2,4.8],[6,4.8],[6,11],[-16,11]];
+function area(p){let a=0;for(let i=0;i<p.length;i++){const[x1,z1]=p[i],[x2,z2]=p[(i+1)%p.length];a+=x1*z2-x2*z1}return a/2}
+function inset(p,d){
+  const s=area(p)>0?1:-1,n=p.length,out=[];
+  const nrm=(a,b)=>{const ex=b[0]-a[0],ez=b[1]-a[1],L=Math.hypot(ex,ez);return s>0?[-ez/L,ex/L]:[ez/L,-ex/L]};
+  for(let i=0;i<n;i++){const pv=p[(i-1+n)%n],c=p[i],nx=p[(i+1)%n];const n1=nrm(pv,c),n2=nrm(c,nx);out.push([c[0]+d*(n1[0]+n2[0]),c[1]+d*(n1[1]+n2[1])])}
+  return out;
+}
+function drawRounded(target,pts,r){
+  const P=pts.map(([x,z])=>new THREE.Vector2(x,-z)),n=P.length;
+  for(let i=0;i<n;i++){
+    const p=P[i],a=P[(i-1+n)%n],b=P[(i+1)%n];
+    const da=a.clone().sub(p).normalize().multiplyScalar(r),db=b.clone().sub(p).normalize().multiplyScalar(r);
+    const s=p.clone().add(da),e=p.clone().add(db);
+    i===0?target.moveTo(s.x,s.y):target.lineTo(s.x,s.y);
+    target.quadraticCurveTo(p.x,p.y,e.x,e.y);
+  }
+  target.closePath();return target;
+}
+function slab(pts,r,y0,y1,mat,holePts,parent=scene){
+  const sh=drawRounded(new THREE.Shape(),pts,r);
+  if(holePts)sh.holes.push(drawRounded(new THREE.Path(),holePts,r));
+  const g=new THREE.ExtrudeGeometry(sh,{depth:y1-y0,bevelEnabled:false,curveSegments:10});
+  g.rotateX(-Math.PI/2);g.translate(0,y0,0);
+  const m=new THREE.Mesh(g,mat);m.receiveShadow=true;m.castShadow=!holePts;parent.add(m);return {mesh:m,shape:sh};
+}
+function outline(shape,y,color,k=1.8,op=1,parent=scene){
+  const pts=shape.getPoints(10).map(p=>new THREE.Vector3(p.x,y,-p.y));pts.push(pts[0].clone());
+  const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:new THREE.Color(color).multiplyScalar(k),transparent:op<1,opacity:op,toneMapped:false}));
+  parent.add(l);return l;
+}
+function mullions(pts,y0,y1,step=1.3,op=.35,parent=scene){
+  const v=[];
+  for(let i=0;i<pts.length;i++){const a=pts[i],b=pts[(i+1)%pts.length];const L=Math.hypot(b[0]-a[0],b[1]-a[1]);const n=Math.floor(L/step);
+    for(let k=1;k<n;k++){const t=k/n;const x=a[0]+(b[0]-a[0])*t,z=a[1]+(b[1]-a[1])*t;v.push(x,y0,z,x,y1,z)}}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
+  const l=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:'#3ee6c1',transparent:true,opacity:op}));parent.add(l);
+}
+const R=1.4;
+const top=slab(FLOOR,R,-.5,0,[M.floor,M.slabSide]);
+outline(top.shape,.012,'#3ee6c1',1.4,.9);
+const inA=inset(FLOOR,.4);
+const band1=slab(inA,R,-2.3,-.5,M.glassBand); mullions(inA,-2.3,-.5);
+outline(band1.shape,-.52,'#3ee6c1',1.2,.5);
+const mid=slab(FLOOR,R,-2.85,-2.3,[M.slabSide2,M.slabSide]); outline(mid.shape,-2.3,'#3ee6c1',1,.5);
+const band2=slab(inA,R,-4.6,-2.85,M.glassBand); mullions(inA,-4.6,-2.85);
+const base=slab(FLOOR,R,-5.15,-4.6,[M.slabSide2,M.slabSide2]); outline(base.shape,-5.16,'#3ee6c1',.9,.4);
+// interior ghost floor inside glass (lower level hint)
+slab(inset(FLOOR,.8),R,-2.31,-2.30,new THREE.MeshBasicMaterial({color:'#0b2a2c',transparent:true,opacity:.6}));
+// railing
+const rOut=inset(FLOOR,.12),rIn=inset(FLOOR,.2);
+const rail=slab(rOut,R,0,.95,M.rail,rIn); rail.mesh.castShadow=false;
+outline(drawRounded(new THREE.Shape(),inset(FLOOR,.16),R),.95,'#9ff5e0',1.3,.75);
+// ground grid
+const grid=new THREE.GridHelper(220,110,'#16202e','#0e1520');grid.position.y=-5.4;scene.add(grid);
+const shadowCatcher=new THREE.Mesh(GEO.Plane(200,200),new THREE.ShadowMaterial({opacity:.35}));
+shadowCatcher.rotation.x=-Math.PI/2;shadowCatcher.position.y=-5.39;shadowCatcher.receiveShadow=true;scene.add(shadowCatcher);
+
+/* =========================================================
+   ZONES
+   ========================================================= */
+const pickables=[]; // objects with userData.pick
+const movables=[];  // edit-layout draggable roots
+const zoneFloors={};
+function floorText(text,w,color='rgba(235,242,250,.22)'){
+  const c=document.createElement('canvas');c.width=1024;c.height=128;const g=c.getContext('2d');
+  g.font='600 64px "JetBrains Mono", monospace';g.fillStyle=color;g.textBaseline='middle';
+  const t=text.toUpperCase().split('').join(String.fromCharCode(8202));g.fillText(t,12,68);
+  const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;
+  const h=w/8;const m=new THREE.Mesh(GEO.Plane(w,h),new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false}));
+  m.rotation.x=-Math.PI/2;return m;
+}
+// A zone is a group centred on its rectangle, so new rooms can grow out of the floor.
+function buildZone(id,parent=scene){
+  const z=ZONES[id],lv=z.level||1;
+  const w=z.x1-z.x0,d=z.z1-z.z0,cx=(z.x0+z.x1)/2,cz=(z.z0+z.z1)/2,tint=z.tint||'#5d7290';
+  const g=new THREE.Group();g.position.set(cx,levelY(lv),cz);parent.add(g);
+  const plate=mesh(RB(w,.05,d,.25,3),new THREE.MeshStandardMaterial({color:new THREE.Color(tint).lerp(new THREE.Color('#152031'),.86),roughness:.5,metalness:.4,transparent:true,opacity:.95}),0,.025,0,g);
+  plate.castShadow=false;plate.userData.pick={type:'zone',id,level:lv};pickables.push(plate);zoneFloors[id]=plate;
+  outline(drawRounded(new THREE.Shape(),[[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2]],.25),.06,tint,1.2,.55,g);
+  const fw=Math.min(w*.8,6.4);const ft=floorText(z.name,fw);ft.position.set(-w/2+fw/2+.3,.06,d/2-.42);g.add(ft);
+  return g;
+}
+for(const id of Object.keys(ZONES))buildZone(id);
+
+/* =========================================================
+   FURNITURE
+   ========================================================= */
+function makeScreenCanvas(w=160,h=96){const c=document.createElement('canvas');c.width=w;c.height=h;const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return {c,g:c.getContext('2d'),t}}
+let DESK_T=null; // desk + monitor + chair merged into one mesh per material (16 draw calls -> 6)
+function makeDesk(){
+  DESK_T??=mergeParts([
+    [RB(1.5,.07,.8,.03),M.deskTop,0,.74,0],
+    ...[[-.68,-.33],[.68,-.33],[-.68,.33],[.68,.33]].map(([x,z])=>[GEO.Box(.05,.72,.05),M.dark,x,.36,z]),
+    [GEO.Box(1.36,.28,.03),M.desk,0,.56,-.36],
+    [GEO.Cylinder(.03,.03,.22,8),M.dark,0,.88,-.24],[RB(.3,.03,.18,.01),M.dark,0,.785,-.24],[RB(.96,.58,.05,.02),M.dark,0,1.15,-.24],
+    [RB(.5,.025,.16,.01),M.botDark,0,.79,.08],[GEO.Cylinder(.045,.04,.1,10),M.white,.5,.83,.1],
+    [RB(.55,.08,.5,.03),M.chair,0,.46,.74],[RB(.55,.62,.07,.03),M.chair,0,.8,1],
+    [GEO.Cylinder(.03,.03,.38,8),M.dark,0,.24,.74],[GEO.Cylinder(.24,.24,.03,10),M.dark,0,.04,.74],
+  ]);
+  const g=new THREE.Group();
+  for(const [geo,mat] of DESK_T){const m=new THREE.Mesh(geo,mat);m.castShadow=m.receiveShadow=true;g.add(m)}
+  const sc=makeScreenCanvas();
+  const screen=new THREE.Mesh(GEO.Plane(.9,.52),new THREE.MeshBasicMaterial({map:sc.t,toneMapped:false}));
+  screen.position.set(0,1.15,-.212);g.add(screen);
+  const ch=new THREE.Group();ch.position.set(0,0,.74);g.add(ch);
+  return {group:g,screen:sc,chair:ch};
+}
+function makePlant(x,z,s=1,parent=scene,y=0,level=1){
+  const g=new THREE.Group();g.position.set(x,y,z);g.userData.level=level;parent.add(g);
+  const parts=gcache('plant'+s,()=>mergeParts([[GEO.Cylinder(.28*s,.22*s,.5*s,14),M.pot,0,.25*s,0],[GEO.Icosahedron(.42*s,0),M.plant,0,.78*s,0],
+    [GEO.Icosahedron(.3*s,0),M.plant2,.18*s,1.02*s,.08*s],[GEO.Icosahedron(.26*s,0),M.plant,-.16*s,1.08*s,-.1*s]]));
+  for(const [geo,mat] of parts){const m=new THREE.Mesh(geo,mat);m.castShadow=m.receiveShadow=true;g.add(m)}
+  g.userData.movable=true;g.userData.label='Plant';movables.push(g);return g;
+}
+function makeSofa(x,z,rot){
+  const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rot;scene.add(g);
+  mesh(RB(2.8,.36,.9,.06),M.sofa,0,.22,0,g);
+  for(const sx of [-.9,0,.9])mesh(RB(.86,.14,.7,.06),M.cushion,sx,.46,.06,g);
+  mesh(RB(2.8,.62,.24,.08),M.sofa,0,.66,-.36,g);
+  mesh(RB(.2,.5,.9,.06),M.sofa,-1.45,.42,0,g);mesh(RB(.2,.5,.9,.06),M.sofa,1.45,.42,0,g);
+  g.userData.movable=true;g.userData.label='Sofa';g.userData.seats=[-.9,0,.9];movables.push(g);return g;
+}
+
+/* =========================================================
+   CHARACTERS
+   ========================================================= */
+function limb(w,h,d,mat,parent,x,y){
+  const p=new THREE.Group();p.position.set(x,y,0);parent.add(p);
+  mesh(RB(w,h,d,.04),mat,0,-h/2,0,p);return p;
+}
+function makeCharacter(kind,color){
+  const root=new THREE.Group();
+  const body=new THREE.Group();root.add(body);
+  const legMat=kind==='bot'?M.botDark:M.pants;
+  const legL=limb(.15,.44,.17,legMat,body,-.11,.46),legR=limb(.15,.44,.17,legMat,body,.11,.46);
+  const torsoMat=kind==='bot'?M.bot:std(color,{metalness:.05,roughness:.75});
+  mesh(RB(.5,.52,.32,.1,3),torsoMat,0,.74,0,body);
+  const armMat=kind==='bot'?M.botDark:torsoMat;
+  const armL=limb(.11,.4,.12,armMat,body,-.31,.96),armR=limb(.11,.4,.12,armMat,body,.31,.96);
+  const head=new THREE.Group();head.position.set(0,1.24,0);body.add(head);
+  let visor=null,chest=null;
+  if(kind==='bot'){
+    mesh(RB(.46,.38,.4,.1,3),M.bot,0,0,0,head);
+    visor=mesh(RB(.38,.11,.03,.02),glow(color,2.4),0,.02,.2,head);visor.castShadow=false;
+    mesh(GEO.Cylinder(.012,.012,.16,6),M.botDark,0,.27,0,head);
+    const ant=mesh(GEO.Sphere(.035,10,8),glow(color,2.4),0,.36,0,head);ant.castShadow=false;
+    chest=mesh(GEO.Plane(.16,.06),glow(color,2),0,.8,.161,body);chest.castShadow=false;
+    visor.userData.ant=ant;
+  }else{
+    mesh(GEO.Sphere(.2,18,14),M.skin,0,0,0,head);
+    const hair=mesh(GEO.Sphere(.212,18,10,0,Math.PI*2,0,Math.PI*.55),M.hair,0,.02,-.01,head);hair.rotation.x=-.25;
+  }
+  // status ring + gem
+  const ring=new THREE.Mesh(GEO.Ring(.44,.52,40),glow(color,1.6,{transparent:true,opacity:.6,side:THREE.DoubleSide,depthWrite:false}));
+  ring.rotation.x=-Math.PI/2;ring.position.y=.07;root.add(ring);
+  const gem=new THREE.Mesh(GEO.Octahedron(.11,0),glow(color,2.6));gem.position.y=1.85;root.add(gem);
+  const hit=new THREE.Mesh(GEO.Box(.9,1.9,.9),HIT_MAT);hit.visible=false;hit.userData.hit=true; // invisible: raycast only, no draw call
+  hit.position.y=.95;root.add(hit);
+  scene.add(root);
+  return {root,body,legL,legR,armL,armR,head,visor,chest,ring,gem,hit};
+}
+function tint(c,col){
+  const k=new THREE.Color(col);
+  if(c.visor){c.visor.material.color.copy(k).multiplyScalar(2.4);c.visor.userData.ant.material.color.copy(k).multiplyScalar(2.4);c.chest.material.color.copy(k).multiplyScalar(2)}
+  c.ring.material.color.copy(k).multiplyScalar(1.6);c.gem.material.color.copy(k).multiplyScalar(2.6);
+}
+
+/* =========================================================
+   PLACE DESKS
+   ========================================================= */
+const people=[]; // agents + humans
+const byId={};
+function podPositions(zone,n,rows=2){
+  const z=ZONES[zone];const cx=(z.x0+z.x1)/2,cz=(z.z0+z.z1)/2-.15;
+  const cols=rows===1?n:Math.ceil(n/2),sp=1.75;const res=[];
+  for(let i=0;i<n;i++){
+    // fill row B (facing camera) first
+    const rowB=rows===1?true:i<cols;const col=rowB?i:i-cols;
+    const x=cx+(col-(cols-1)/2)*sp;
+    res.push(rowB?{x,z:cz-.45,rot:Math.PI}:{x,z:cz+.45,rot:0});
+  }
+  return res;
+}
+function seatOf(p){ // world seat position & facing from desk group
+  const g=p.desk.group;const v=new THREE.Vector3(0,0,.66).applyAxisAngle(new THREE.Vector3(0,1,0),g.rotation.y).add(g.position);
+  return {pos:v,rot:g.rotation.y+Math.PI};
+}
+function addPerson(data,kind,pos,zone,level=1,parent=scene){
+  const d=makeDesk();d.group.position.set(pos.x,levelY(level),pos.z);d.group.rotation.y=pos.rot;parent.add(d.group);
+  const col=kind==='bot'?COLORS[data.state]:data.shirt;
+  const c=makeCharacter(kind,col);
+  const p={...data,kind,zone,level,desk:d,char:c,mode:'seat',path:null,phase:Math.random()*10,papers:[]};
+  d.group.userData.level=level;d.group.userData.movable=true;d.group.userData.label=`${data.name}'s desk`;d.group.userData.person=p;movables.push(d.group);
+  c.hit.userData.pick={type:'person',id:p.id};pickables.push(c.hit);
+  d.screen.t.userData={};
+  // label
+  const el=document.createElement('div');el.className='tag';
+  el.innerHTML=`<span class="dot"></span><b>${p.name}</b><em></em>`;
+  const lab=new CSS2DObject(el);lab.position.set(0,2.15,0);c.root.add(lab);p.tag=el;p.label=lab;
+  // agents are listed before people in the roster
+  const hi=people.findIndex(q=>q.kind==='human');
+  kind==='bot'&&hi>=0?people.splice(hi,0,p):people.push(p);byId[p.id]=p;
+  if(kind==='bot')tint(c,COLORS[p.state]);else{c.gem.visible=false;c.ring.visible=false}
+  placeAtSeat(p);
+  return p;
+}
+function placeAtSeat(p){const s=seatOf(p);p.char.root.position.copy(s.pos);p.char.root.rotation.y=s.rot;p.mode='seat'}
+
+const groups={};
+for(const a of AGENTS)(groups[a.zone]??=[]).push(a);
+for(const [zone,list] of Object.entries(groups)){
+  const pos=zone==='lounge'?[{x:-13.4,z:4.9,rot:Math.PI},{x:-11.6,z:4.9,rot:Math.PI}]:podPositions(zone,list.length);
+  list.forEach((a,i)=>addPerson(a,'bot',pos[i],zone));
+}
+podPositions('team',HUMANS.length).forEach((pos,i)=>{
+  const h=addPerson(HUMANS[i],'human',pos,'team');
+  const n=TASKS.filter(t=>t.human===h.name).length+(h.name==='Beny'?3:h.name==='Sarah'?1:0);
+  for(let k=0;k<n;k++){const pp=mesh(GEO.Box(.26,.012,.34),M.white,-.48,.79+k*.018,.1+(k%2)*.02,h.desk.group);pp.rotation.y=(Math.random()-.5)*.3}
+});
+
+/* Lounge */
+const sofaA=makeSofa(-12.6,6.4,0), sofaB=makeSofa(-9.2,7.9,-Math.PI/2);
+mesh(RB(6.4,.02,4,.3),M.rug,-11.2,.065,7.6,scene).castShadow=false;
+const coffee=new THREE.Group();coffee.position.set(-11.6,0,7.9);scene.add(coffee);
+mesh(GEO.Cylinder(.75,.75,.07,24),M.deskTop,0,.42,0,coffee);mesh(GEO.Cylinder(.06,.1,.4,10),M.dark,0,.2,0,coffee);
+mesh(GEO.Cylinder(.05,.045,.1,10),M.white,.2,.5,.1,coffee);mesh(GEO.Cylinder(.05,.045,.1,10),M.white,-.25,.5,-.15,coffee);
+coffee.userData.movable=true;coffee.userData.label='Coffee table';movables.push(coffee);
+// coffee bar
+const bar=new THREE.Group();bar.position.set(-7.3,0,9.2);scene.add(bar);
+mesh(RB(2.4,.95,.7,.06),M.desk,0,.475,0,bar);mesh(RB(2.5,.05,.78,.02),M.deskTop,0,.97,0,bar);
+mesh(RB(.45,.55,.4,.05),M.dark,-.6,1.27,-.05,bar);mesh(GEO.Plane(.18,.06),glow('#3ee6c1',2),-.6,1.4,.151,bar);
+bar.userData.movable=true;bar.userData.label='Coffee bar';movables.push(bar);
+for(const [x,z,s] of [[-15,10,1.2],[-6.5,4.1,1],[-15,-2.6,1],[4.6,-9.4,1.1],[13,4.2,1],[-2.6,10,1],[12.8,-10.5,1.15],[-6.2,-5.6,.9]])makePlant(x,z,s);
+for(const [x,z] of [[-7.7,6],[-7.2,5.1]]){const bb=mesh(GEO.Sphere(.38,16,12),M.cushion,x,.28,z,scene);bb.scale.y=.7}
+
+/* Sofa seat spots */
+function sofaSpots(){
+  const out=[];
+  for(const s of [sofaA,sofaB])for(const sx of s.userData.seats){
+    const v=new THREE.Vector3(sx,0,.12).applyAxisAngle(new THREE.Vector3(0,1,0),s.rotation.y).add(s.position);
+    out.push({pos:v,rot:s.rotation.y,y:.04});
+  }
+  return out;
+}
+
+/* Meeting room */
+const MZ=ZONES.meet,MC=new THREE.Vector3((MZ.x0+MZ.x1)/2,0,(MZ.z0+MZ.z1)/2);
+const mtable=new THREE.Group();mtable.position.copy(MC);scene.add(mtable);
+mesh(GEO.Cylinder(1.25,1.25,.08,6),M.deskTop,0,.75,0,mtable);
+mesh(GEO.Cylinder(.18,.3,.72,10),M.dark,0,.36,0,mtable);
+const holo=mesh(GEO.Cylinder(.5,.5,.01,6),glow('#3ee6c1',1.4,{transparent:true,opacity:.5}),0,.8,0,mtable);holo.castShadow=false;
+for(let i=0;i<6;i++){const a=i/6*Math.PI*2+Math.PI/6;const ch=new THREE.Group();ch.position.set(Math.sin(a)*1.75,0,Math.cos(a)*1.75);ch.rotation.y=a+Math.PI;mtable.add(ch);
+  mesh(RB(.5,.07,.46,.03),M.chair,0,.46,0,ch);mesh(RB(.5,.5,.06,.03),M.chair,0,.74,.24,ch);mesh(GEO.Cylinder(.03,.03,.4,8),M.dark,0,.24,0,ch)}
+mtable.userData.movable=true;mtable.userData.label='Meeting table';movables.push(mtable);
+// meeting wall screen
+const mscr=makeScreenCanvas(512,256);
+const mwall=new THREE.Group();mwall.position.set(MC.x,0,MZ.z0+.05);scene.add(mwall);
+mesh(RB(3.6,2,.08,.04),M.dark,0,1.75,0,mwall);mesh(GEO.Box(.06,.75,.06),M.dark,-1.2,.38,0,mwall);mesh(GEO.Box(.06,.75,.06),M.dark,1.2,.38,0,mwall);
+const mScreen=new THREE.Mesh(GEO.Plane(3.4,1.8),new THREE.MeshBasicMaterial({map:mscr.t,toneMapped:false}));mScreen.position.set(0,1.75,.045);mwall.add(mScreen);
+
+/* Server racks (runtimes) */
+const LED_MAT=new THREE.MeshBasicMaterial({color:'#ffffff',toneMapped:false});
+const racks=[];
+RUNTIMES.forEach((rt,i)=>{
+  const g=new THREE.Group();g.position.set(-1.6+i*1.75,0,7.4);scene.add(g);
+  mesh(RB(1.1,2.3,.9,.05),M.dark,0,1.15,0,g);
+  mesh(RB(1.12,.06,.92,.02),M.slabSide,0,2.31,0,g);
+  // 9 bays + 36 LEDs as two instanced meshes (45 draw calls -> 2)
+  const bays=new THREE.InstancedMesh(GEO.Box(.9,.18,.02),M.botDark,9);
+  const leds=new THREE.InstancedMesh(GEO.Plane(.05,.04),LED_MAT,36);
+  const mx=new THREE.Matrix4(),col=new THREE.Color();
+  for(let r=0;r<9;r++){
+    bays.setMatrixAt(r,mx.makeTranslation(0,.35+r*.21,.451));
+    for(let k=0;k<4;k++){const i=r*4+k;leds.setMatrixAt(i,mx.makeTranslation(.25+k*.09,.35+r*.21,.462));
+      leds.setColorAt(i,col.set(rt.online?(rt.quotaOut&&k===0?'#f5b84b':'#3ee6c1'):'#ff5d6c').multiplyScalar(rt.online?2.2:.8))}
+  }
+  g.add(bays,leds);leds.userData.on=new Array(36).fill(true);
+  const strip=new THREE.Mesh(GEO.Plane(.04,1.9),glow(rt.online?'#3ee6c1':'#ff5d6c',rt.online?2:.6));strip.position.set(-.45,1.2,.462);g.add(strip);
+  const hit=new THREE.Mesh(GEO.Box(1.2,2.4,1),HIT_MAT);hit.visible=false;hit.userData.hit=true;hit.position.y=1.2;g.add(hit);
+  hit.userData.pick={type:'rack',id:rt.id};pickables.push(hit);
+  racks.push({rt,g,leds,strip});
+});
+// glass partition for server room
+const part=mesh(GEO.Box(8.2,1.6,.04),M.rail,1,.8,5.75,scene);part.castShadow=false;
+
+/* Command wall (curved screen) */
+const wallC=makeScreenCanvas(1400,420);
+{
+  const Rr=9,L=.86;
+  const geo=GEO.Cylinder(Rr,Rr,2.9,48,1,true,Math.PI-L/2,L);
+  wallC.t.wrapS=THREE.RepeatWrapping;wallC.t.repeat.x=-1;wallC.t.offset.x=1;
+  const scr=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map:wallC.t,toneMapped:false,side:THREE.DoubleSide}));
+  scr.position.set(.6,2.15,-10.45+Rr);scene.add(scr);
+  const back=new THREE.Mesh(GEO.Cylinder(Rr+.08,Rr+.08,3.1,48,1,true,Math.PI-L/2-.01,L+.02),std('#0b1018',{side:THREE.DoubleSide}));
+  back.position.copy(scr.position);scene.add(back);
+  for(const s of [-1,1]){const a=Math.PI+s*L/2*.85;mesh(GEO.Box(.1,.7,.1),M.dark,.6+Math.sin(a)*Rr,.35,-10.45+Rr+Math.cos(a)*Rr,scene)}
+}
+
+/* =========================================================
+   SCREENS (monitor canvases)
+   ========================================================= */
+function drawMonitor(p,t){
+  const {g,c,t:tex}=p.desk.screen;const W=c.width,H=c.height;
+  const st=officeOpen?p.state:'closed';
+  g.clearRect(0,0,W,H);
+  const gone=st==='off'||st==='home'||st==='closed'||st==='away';
+  if(gone){g.fillStyle='#05080d';g.fillRect(0,0,W,H);tex.needsUpdate=true;return}
+  if(p.kind==='human'){
+    g.fillStyle='#0f1a2a';g.fillRect(0,0,W,H);g.fillStyle='#1f3048';g.fillRect(0,0,W,14);
+    for(let i=0;i<5;i++){g.fillStyle=i===0?'#3ee6c1':'#2c4060';g.fillRect(8,22+i*14,8,8);g.fillStyle='#3c5476';g.fillRect(22,24+i*14,60+((i*37)%60),4)}
+    tex.needsUpdate=true;return;
+  }
+  const bg={working:'#06231f',review:'#241a07',failed:'#2a0a0f',ready:'#0b1530',break:'#140f2a'}[st]||'#05080d';
+  g.fillStyle=bg;g.fillRect(0,0,W,H);
+  if(st==='working'){
+    const off=Math.floor(t*6+p.phase*10);
+    for(let i=0;i<9;i++){const k=(off+i)%17;const ind=(k%4)*8;const w=20+((k*53)%90);
+      g.fillStyle=['#3ee6c1','#7aa2ff','#5c6f8c','#c4b5ff'][k%4];g.fillRect(8+ind,6+i*10,w,4)}
+    if(Math.floor(t*2)%2){g.fillStyle='#3ee6c1';g.fillRect(8,6+9*10-2,6,7)}
+  }else if(st==='review'){
+    g.fillStyle='rgba(255,255,255,.08)';g.fillRect(0,0,W,12);g.fillStyle='#f5b84b';g.fillRect(6,4,40,4);
+    for(let i=0;i<8;i++){const add=[1,1,0,2,2,1,0,2][i];g.fillStyle=add===1?'rgba(62,230,193,.22)':add===2?'rgba(255,93,108,.22)':'transparent';g.fillRect(0,16+i*10,W,9);
+      g.fillStyle=add===1?'#7cf3d9':add===2?'#ff8d98':'#5c6f8c';g.fillRect(6,19+i*10,4,3);g.fillRect(16,19+i*10,30+((i*41)%90),3)}
+  }else if(st==='failed'){
+    const on=Math.floor(t*2.5)%2;g.fillStyle=on?'#ff5d6c':'#7a1d28';g.font='bold 22px JetBrains Mono, monospace';g.fillText('ERROR',36,46);
+    g.fillStyle='#ff8d98';g.font='11px JetBrains Mono, monospace';g.fillText('quota used up',34,66);
+  }else if(st==='ready'){
+    g.fillStyle='#7aa2ff';g.font='12px JetBrains Mono, monospace';g.fillText('> ready',10,22);g.fillText('  queue: 2',10,38);
+    if(Math.floor(t*2)%2)g.fillRect(10,46,7,11);
+  }else if(st==='break'){
+    g.fillStyle='#a08cff';g.globalAlpha=.6;g.beginPath();g.arc(80+Math.sin(t)*30,48+Math.cos(t*1.3)*16,10,0,7);g.fill();g.globalAlpha=1;
+  }
+  tex.needsUpdate=true;
+}
+function drawWall(t){
+  const {g,c,t:tex}=wallC;const W=c.width,H=c.height;
+  const grd=g.createLinearGradient(0,0,0,H);grd.addColorStop(0,'#08151b');grd.addColorStop(1,'#050a10');g.fillStyle=grd;g.fillRect(0,0,W,H);
+  g.strokeStyle='rgba(62,230,193,.08)';g.lineWidth=1;for(let x=0;x<W;x+=40){g.beginPath();g.moveTo(x,0);g.lineTo(x,H);g.stroke()}for(let y=0;y<H;y+=40){g.beginPath();g.moveTo(0,y);g.lineTo(W,y);g.stroke()}
+  g.fillStyle='#3ee6c1';g.font='700 64px Inter, sans-serif';g.fillText('NOAMI HQ',60,110);
+  g.fillStyle='rgba(235,242,250,.55)';g.font='500 24px JetBrains Mono, monospace';
+  ['Ideas','People','Agents','Impact'].forEach((s,i)=>g.fillText(s,64,160+i*34));
+  const c2=counts();
+  const box=(x,label,val,col)=>{g.fillStyle='rgba(255,255,255,.04)';g.fillRect(x,60,190,130);g.fillStyle=col;g.fillRect(x,60,4,130);
+    g.fillStyle='rgba(235,242,250,.6)';g.font='500 20px JetBrains Mono, monospace';g.fillText(label,x+20,95);g.fillStyle='#eef3f9';g.font='700 64px Inter, sans-serif';g.fillText(val,x+20,170)};
+  box(420,'WORKING',c2.working,'#3ee6c1');box(630,'REVIEW',c2.review,'#f5b84b');box(840,'FAILED',c2.failed,'#ff5d6c');box(1050,'ONLINE',`${RUNTIMES.filter(r=>r.online).length}/${RUNTIMES.length}`,'#7aa2ff');
+  // sparkline
+  g.strokeStyle='#3ee6c1';g.lineWidth=4;g.beginPath();
+  for(let i=0;i<=60;i++){const x=420+i*13.5,y=330+Math.sin(i*.35+t*.8)*26+Math.sin(i*.9+t*1.7)*10;i?g.lineTo(x,y):g.moveTo(x,y)}g.stroke();
+  g.fillStyle='rgba(235,242,250,.45)';g.font='500 18px JetBrains Mono, monospace';g.fillText('throughput · last 24h',420,395);
+  tex.needsUpdate=true;
+}
+let standupLines=[];
+function drawMeetScreen(){
+  const {g,c,t}=mscr;g.fillStyle='#08121b';g.fillRect(0,0,c.width,c.height);
+  g.fillStyle=standup?'#3ee6c1':'rgba(235,242,250,.35)';g.font='700 34px Inter, sans-serif';g.fillText(standup?'STANDUP · LIVE':'Meeting room',24,52);
+  g.font='500 18px JetBrains Mono, monospace';g.fillStyle='rgba(235,242,250,.6)';
+  (standup?standupLines.slice(-6):['Next: Daily standup · 09:00','Sprint 14 · day 4 of 10']).forEach((s,i)=>g.fillText(s.slice(0,44),24,96+i*28));
+  t.needsUpdate=true;
+}
+
+/* =========================================================
+   STATE
+   ========================================================= */
+let officeOpen=true, standup=null, follow=null, editing=false, walkMode=false, selected=null;
+const counts=()=>{const a=people.filter(p=>p.kind==='bot'&&officeOpen);return{working:a.filter(p=>p.state==='working').length,review:a.filter(p=>p.state==='review').length,failed:a.filter(p=>p.state==='failed').length}};
+
+function visualState(p){return officeOpen?p.state:(p.kind==='bot'?'closed':p.state)}
+function applyState(p){
+  const st=visualState(p);
+  const col=p.kind==='bot'?COLORS[st]:(p.state==='here'?'#3ee6c1':'#4b5a70');
+  if(p.kind==='bot')tint(p.char,col);
+  const gone=['off','home','closed','away'].includes(st)||p.level>viewLevel;
+  if(gone&&p.mode!=='walk'){p.char.root.visible=false}
+  else if(!gone){p.char.root.visible=true}
+  p.tag.querySelector('.dot').style.background=col;
+  p.tag.querySelector('em').textContent=officeOpen?p.bubble:'Office closed';
+  p.tag.style.display=p.char.root.visible?'':'none';
+  drawMonitor(p,performance.now()/1000);
+  // break → lounge, otherwise back to seat
+  if(p.kind==='bot'&&!standup){
+    if(st==='break'&&p.mode==='seat')goSofa(p);
+    else if(st!=='break'&&p.mode==='sofa')goSeat(p);
+  }
+}
+
+/* ---------- walking ---------- */
+const CORR=-1.25;
+function routeTo(p,dest){
+  const s=p.char.root.position.clone();
+  const pts=[];
+  const back=new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0),p.char.root.rotation.y).multiplyScalar(-.7);
+  pts.push(s.clone().add(back).setY(0));
+  pts.push(new THREE.Vector3(pts[0].x,0,CORR));
+  pts.push(new THREE.Vector3(dest.x,0,CORR));
+  pts.push(dest.clone().setY(0));
+  return pts;
+}
+function walk(p,dest,rot,mode,y=0){
+  p.char.root.visible=true;p.tag.style.display='';
+  p.path=routeTo(p,dest);p.endRot=rot;p.endMode=mode;p.endY=y;p.mode='walk';p.char.root.position.y=0;
+}
+function goSeat(p){const s=seatOf(p);walk(p,s.pos,s.rot,'seat')}
+function goSofa(p){
+  const taken=new Set(people.filter(q=>q!==p&&(q.mode==='sofa'||(q.mode==='walk'&&q.endMode==='sofa'))).map(q=>q.sofaIdx));
+  const spots=sofaSpots();const i=spots.findIndex((_,k)=>!taken.has(k));if(i<0)return;
+  p.sofaIdx=i;walk(p,spots[i].pos,spots[i].rot,'sofa',spots[i].y);
+}
+
+/* =========================================================
+   HANDOVER packets
+   ========================================================= */
+const packets=[];
+function handover(a,b,title){
+  const s=a.char.root.position.clone().setY(1.4),e=b.char.root.position.clone().setY(1.4);
+  const mid=s.clone().lerp(e,.5);mid.y+=3+s.distanceTo(e)*.15;
+  const curve=new THREE.QuadraticBezierCurve3(s,mid,e);
+  const m=new THREE.Mesh(GEO.Icosahedron(.16,1),glow('#3ee6c1',3));scene.add(m);
+  const tl=new THREE.Mesh(new THREE.TubeGeometry(curve,48,.025,6),glow('#3ee6c1',1.6,{transparent:true,opacity:.0}));scene.add(tl);
+  packets.push({m,tl,curve,t:0});
+  toast(`${a.name} handed over <b>${title}</b> to ${b.name}`,'git');
+}
+
+/* =========================================================
+   CAMERA TWEENS
+   ========================================================= */
+let tween=null;
+function flyTo(target,zoom=1.9,dur=900){
+  const t0=performance.now(),fromT=controls.target.clone(),fromP=camera.position.clone(),fromZ=camera.zoom;
+  const off=fromP.clone().sub(fromT);
+  tween={update(now){const k=Math.min(1,(now-t0)/dur);const e=1-Math.pow(1-k,3);
+    controls.target.lerpVectors(fromT,target,e);camera.position.copy(controls.target).add(off);
+    camera.zoom=fromZ+(zoom-fromZ)*e;camera.updateProjectionMatrix();return k<1}};
+}
+function rotateView(dir){
+  const t0=performance.now(),off0=camera.position.clone().sub(controls.target),ang=dir*Math.PI/2;
+  tween={update(now){const k=Math.min(1,(now-t0)/650);const e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+    camera.position.copy(controls.target).add(off0.clone().applyAxisAngle(new THREE.Vector3(0,1,0),ang*e));return k<1}};
+}
+function resetView(){
+  follow=null;$('#follow').classList.remove('show');
+  const t0=performance.now(),fT=controls.target.clone(),fP=camera.position.clone(),fZ=camera.zoom;
+  tween={update(now){const k=Math.min(1,(now-t0)/900);const e=1-Math.pow(1-k,3);
+    const H=HOME_TARGET.clone();H.y+=levelY(viewLevel);
+    controls.target.lerpVectors(fT,H,e);camera.position.lerpVectors(fP,H.clone().add(CAM_OFF),e);
+    camera.zoom=fZ+(1-fZ)*e;camera.updateProjectionMatrix();return k<1}};
+}
+
+/* =========================================================
+   PICKING / HOVER / EDIT DRAG
+   ========================================================= */
+const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
+const tip=$('#tip');let hovered=null,hoverBox=null,drag=null;
+const ground=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+function setMouse(e){mouse.x=e.clientX/innerWidth*2-1;mouse.y=-(e.clientY/innerHeight)*2+1;ray.setFromCamera(mouse,camera)}
+function pickAt(e){
+  setMouse(e);
+  const hits=ray.intersectObjects(pickables,false).filter(h=>{
+    const pk=h.object.userData.pick;if(!isShown(h.object))return false;
+    const lv=pk.type==='person'?byId[pk.id].level:(pk.level??1);return lv==='any'||lv===viewLevel});
+  // prefer people, racks & the elevator over floor plates
+  const low=h=>['zone','slot'].includes(h.object.userData.pick.type)?1:0;
+  hits.sort((a,b)=>low(a)-low(b)||a.distance-b.distance);
+  return hits[0]?.object.userData.pick||null;
+}
+function movableAt(e){
+  setMouse(e);const hits=ray.intersectObjects(movables,true);
+  for(const h of hits){if(!isShown(h.object))continue;let o=h.object;while(o&&!o.userData.movable)o=o.parent;if(o&&(o.userData.level||1)===viewLevel)return o}return null;
+}
+function showBox(obj){
+  if(hoverBox){scene.remove(hoverBox);hoverBox=null}
+  if(obj){hoverBox=new THREE.BoxHelper(obj,new THREE.Color('#3ee6c1').multiplyScalar(2));hoverBox.material.toneMapped=false;scene.add(hoverBox)}
+}
+renderer.domElement.addEventListener('pointermove',e=>{
+  if(drag){
+    setMouse(e);const p=new THREE.Vector3();if(ray.ray.intersectPlane(ground,p)){
+      p.sub(drag.off);p.x=Math.round(p.x*4)/4;p.z=Math.round(p.z*4)/4;drag.obj.position.set(p.x,drag.obj.position.y,p.z);
+      const per=drag.obj.userData.person;if(per&&per.mode==='seat')placeAtSeat(per);
+      hoverBox&&hoverBox.update();
+    }return;
+  }
+  if(editing){const m=movableAt(e);if(m!==hovered){hovered=m;showBox(m)}renderer.domElement.style.cursor=m?'grab':'default';
+    if(m){tip.style.display='block';tip.innerHTML=`<b>${m.userData.label}</b><small>Drag to move · snaps to grid</small>`;tip.style.left=e.clientX+14+'px';tip.style.top=e.clientY+14+'px'}else tip.style.display='none';return}
+  const pk=pickAt(e);
+  people.forEach(p=>p.tag.classList.toggle('hot',(pk?.type==='person'&&pk.id===p.id)||selected===p.id));
+  renderer.domElement.style.cursor=pk&&pk.type!=='zone'?'pointer':pk?'pointer':'default';
+  if(pk&&pk.type!=='person'){
+    let html='';
+    if(pk.type==='zone'){const z=ZONES[pk.id];const n=people.filter(p=>p.zone===pk.id).length;html=`<b>${z.name}</b><small>${z.project?`Project · ${z.progress[0]}/${z.progress[1]} done · `:''}${n?n+' desks':''}</small>`}
+    if(pk.type==='slot'){const sl=slotById(pk.id);html=`<b>Empty room slot · L${sl.level}</b><small>Up to ${slotCap(sl)} desks · click to create a project here</small>`}
+    if(pk.type==='elev')html=levels>1?`<b>Elevator</b><small>Go to Level ${viewLevel===1?2:1}</small>`:`<b>Elevator</b><small>Level 2 is built when this floor is full</small>`;
+    if(pk.type==='rack'){const r=RUNTIMES.find(x=>x.id===pk.id);html=`<b>${r.name}</b><small>${r.online?'Online':'Offline'} · ${r.provider} · quota ${r.quota}</small>`}
+    tip.innerHTML=html;tip.style.display='block';tip.style.left=e.clientX+14+'px';tip.style.top=e.clientY+14+'px';
+  }else tip.style.display='none';
+});
+let downAt=null;
+renderer.domElement.addEventListener('pointerdown',e=>{
+  downAt={x:e.clientX,y:e.clientY};
+  if(editing&&e.button===0){const m=movableAt(e);if(m){ground.constant=-levelY(viewLevel);setMouse(e);const p=new THREE.Vector3();ray.ray.intersectPlane(ground,p);
+    drag={obj:m,off:p.sub(m.position)};controls.enabled=false;renderer.domElement.style.cursor='grabbing'}}
+});
+addEventListener('pointerup',e=>{
+  if(drag){toast(`Moved <b>${drag.obj.userData.label}</b>`,'move');drag=null;controls.enabled=true;return}
+  if(!downAt||Math.hypot(e.clientX-downAt.x,e.clientY-downAt.y)>5||e.target!==renderer.domElement){downAt=null;return}
+  downAt=null;if(editing)return;
+  const pk=pickAt(e);if(!pk){closeDrawer();return}
+  if(pk.type==='person')openPerson(pk.id);
+  else if(pk.type==='zone')openZone(pk.id);
+  else if(pk.type==='rack')openRack(pk.id);
+  else if(pk.type==='slot')openNewProject(pk.id);
+  else if(pk.type==='elev'){levels>1?setLevel(viewLevel===1?2:1):toast('Level 2 is built automatically when Level 1 has no free room slot','office')}
+});
+
+/* =========================================================
+   UI: roster, stats, HQ, drawer, modal, chat, toasts
+   ========================================================= */
+const avColor=id=>AV_COL[[...id].reduce((a,c)=>a+c.charCodeAt(0),0)%AV_COL.length];
+function renderRoster(){
+  $('#roster').innerHTML=people.map((p,i)=>{const st=visualState(p);const col=p.kind==='bot'?COLORS[st]:(p.state==='here'?'#3ee6c1':'#4b5a70');
+    return `<button class="chip ${selected===p.id?'sel':''}" data-id="${p.id}" title="${p.name} · ${STATE_LABEL[st]}"><span class="av" style="background:${p.kind==='bot'?avColor(p.id):p.shirt}">${p.kind==='bot'?p.name[0]:p.name[0]}<span class="sd" style="background:${col}"></span></span><span class="nm">${p.name}</span>${p.kind==='bot'?`<span class="eye" data-follow="${p.id}" title="Follow">${ic('eye')}</span>`:''}</button>${p.kind==='bot'&&people[i+1]?.kind==='human'?'<span class="r-sep"></span>':''}`}).join('');
+  fitRoster();
+}
+$('#roster').addEventListener('click',e=>{const f=e.target.closest('[data-follow]');if(f){e.stopPropagation();startFollow(f.dataset.follow);return}
+  const c=e.target.closest('.chip');if(c)openPerson(c.dataset.id)});
+function renderStats(){const c=counts();$('#sWork').textContent=c.working;$('#sRev').textContent=c.review;$('#sFail').textContent=c.failed;$('#sRt').textContent=`${RUNTIMES.filter(r=>r.online).length}/${RUNTIMES.length}`}
+
+const who=t=>t.human||byId[t.agent]?.name;
+const pillFor=t=>t.failed?'<span class="pill p-failed">FAILED</span>':t.flag==='late'?'<span class="pill p-late">LATE</span>':t.flag==='risk'?'<span class="pill p-risk">AT RISK</span>':t.status==='in_review'?'<span class="pill p-review">REVIEW</span>':t.status==='in_progress'?'<span class="pill p-doing">DOING</span>':t.status==='done'?'<span class="pill p-done">DONE</span>':'<span class="pill p-ready">READY</span>';
+const taskCard=t=>`<button class="card" data-task="${t.id}"><div class="row"><b style="flex:1">${t.title}</b>${pillFor(t)}</div><small>${who(t)} · ${t.due}${t.zone&&ZONES[t.zone].project?' · '+ZONES[t.zone].name:''}</small></button>`;
+let hqTab='attn';
+function renderHQ(){
+  const body=$('#hqBody');const open=TASKS.filter(t=>t.status!=='done');
+  if(hqTab==='attn'){
+    const groups=[
+      ['Late or at risk','clock','#ff5d6c',open.filter(t=>t.flag&&!t.human&&!t.failed&&t.status!=='in_review')],
+      ['To-dos for people','person','#7aa2ff',open.filter(t=>t.human)],
+      ['To review','file','#f5b84b',open.filter(t=>t.status==='in_review')],
+      ['Failed','alert','#ff5d6c',open.filter(t=>t.failed)],
+    ];
+    body.innerHTML=groups.map(([h,i,c,l])=>l.length?`<div class="grp"><div class="grp-h"><span style="color:${c}">${ic(i)}</span>${h}<span class="n">${l.length}</span></div>${l.map(t=>t.failed?`<div class="card"><div class="row"><b style="flex:1">${t.title}</b>${pillFor(t)}</div><small>${who(t)} · ${t.failed}</small><div class="row" style="margin-top:8px"><button class="btn sm" data-retry="${t.id}">Retry</button><button class="btn sm" data-task="${t.id}">Open</button></div></div>`:taskCard(t)).join('')}</div>`:'').join('')||'<p style="color:var(--muted);padding:12px">All clear ✨</p>';
+  }else if(hqTab==='inbox'){
+    body.innerHTML=`<div class="grp">${INBOX.map(n=>`<button class="card"><div class="row"><span style="color:var(--accent)">${ic(n.k)}</span><b style="flex:1">${n.t}</b><small>${n.w}</small></div><small style="display:block;margin-left:23px">${n.d}</small></button>`).join('')}</div>`;
+  }else{
+    body.innerHTML=`<div class="grp"><div class="grp-h">${ic('list')}Templates</div>${PLAYBOOKS.map((p,i)=>`<div class="card"><b>${p.t}</b><small>${p.d}</small><div class="row" style="margin-top:8px"><button class="btn sm primary" data-play="${i}">Run now</button><button class="btn sm">Schedule</button></div></div>`).join('')}</div>
+    <div class="grp"><div class="grp-h">${ic('clock')}Active jobs<span class="n">1</span></div><div class="card"><div class="row"><b style="flex:1">Hourly health check</b><span class="pill p-doing">ON</span></div><small>Mika · next run in 23 min</small></div></div>`;
+  }
+}
+$('#hqTabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;hqTab=b.dataset.t;[...$('#hqTabs').children].forEach(x=>x.classList.toggle('on',x===b));renderHQ()});
+$('#hqBody').addEventListener('click',e=>{
+  const r=e.target.closest('[data-retry]');if(r){const t=TASKS.find(x=>x.id===r.dataset.retry);const a=byId[t.agent];delete t.failed;t.flag=null;a.state='working';a.bubble='Retrying: '+t.title;applyState(a);refreshUI();toast(`Retrying <b>${t.title}</b> on ${a.name}`,'rotR');return}
+  const p=e.target.closest('[data-play]');if(p){const pb=PLAYBOOKS[+p.dataset.play];toast(`Playbook <b>${pb.t}</b> sent to Mika`,'spark');handover(byId.mika,byId.arka,pb.t);return}
+  const t=e.target.closest('[data-task]');if(t)openTask(t.dataset.task);
+});
+function setHQ(open){document.body.classList.toggle('hq-open',open);$('#hq').classList.toggle('collapsed',!open);layoutCamera()}
+$('#hqClose').onclick=()=>setHQ(false);
+$('#hqToggle').onclick=()=>setHQ(!document.body.classList.contains('hq-open'));
+$('#dkInbox').onclick=()=>{setHQ(true);hqTab='inbox';[...$('#hqTabs').children].forEach(x=>x.classList.toggle('on',x.dataset.t==='inbox'));renderHQ()};
+document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>toast(`<b>${b.dataset.tip}</b> opens the existing page (out of scope for this mockup)`,'list'));
+
+/* drawer */
+const drawer=$('#drawer');
+function closeDrawer(){drawer.classList.remove('show');selected=null;renderRoster();people.forEach(p=>p.tag.classList.remove('hot'))}
+function showDrawer(html){drawer.innerHTML=html;drawer.classList.remove('show');void drawer.offsetWidth;drawer.classList.add('show');
+  drawer.querySelector('.x')?.addEventListener('click',closeDrawer)}
+function openPerson(id){
+  const p=byId[id];selected=id;renderRoster();people.forEach(q=>q.tag.classList.toggle('hot',q.id===id));
+  if(p.level!==viewLevel)setLevel(p.level,false);
+  if(p.char.root.visible)flyTo(p.char.root.position.clone().add(new THREE.Vector3(0,.8,0)),2.1);
+  const st=visualState(p),col=p.kind==='bot'?COLORS[st]:(p.state==='here'?'#3ee6c1':'#4b5a70');
+  const tasks=p.kind==='bot'?TASKS.filter(t=>t.agent===id):TASKS.filter(t=>t.human===p.name||(p.name==='Beny'&&t.status==='in_review'));
+  const rt=RUNTIMES.find(r=>r.id===p.runtime);
+  showDrawer(`
+   <div class="d-hero"><div class="big" style="background:${p.kind==='bot'?avColor(p.id):p.shirt}">${p.name[0]}</div>
+     <div><h3>${p.name}</h3><p>${p.role}${p.kind==='bot'?' · '+p.engine:''}</p></div>
+     <button class="ib x">${ic('x','i')}</button></div>
+   <div class="statusline"><span class="dot" style="background:${col};box-shadow:0 0 10px ${col}"></span><div><b>${STATE_LABEL[st]}</b><br><small style="color:var(--muted)">${officeOpen?p.bubble:'Office closed'}</small></div></div>
+   <div class="d-actions">
+     ${p.kind==='bot'?`<button class="btn primary sm" id="dNew">${ic('plus')}New task</button>`:''}
+     <button class="btn sm" id="dChat">${ic('chat')}Chat</button>
+     ${p.kind==='bot'?`<button class="btn sm" id="dFollow">${ic('eye')}Follow</button>`:''}
+   </div>
+   <div class="d-body">
+     <div id="dForm"></div>
+     ${rt?`<div class="sect" style="padding:0 6px">Runtime</div><div class="kv"><span>Laptop</span><b>${rt.name}</b><span>Status</span><b style="color:${rt.online?'var(--working)':'var(--failed)'}">${rt.online?'Online':'Offline'}</b><span>Quota</span><b>${rt.quota}</b></div>`:''}
+     <div class="sect" style="padding:0 6px">${p.kind==='bot'?'Open tasks':'To review & to-dos'} (${tasks.length})</div>
+     ${tasks.map(taskCard).join('')||'<p style="color:var(--muted);padding:0 6px">Nothing open.</p>'}
+     ${p.kind==='bot'?`<div class="sect" style="padding:0 6px">Recent work</div>
+       <div class="card"><div class="row"><b style="flex:1">Run #${(id.length*137)%900+100}</b><span class="pill p-done">OK</span></div><small>${tasks[0]?.title||'Idle check-in'} · 18m ago</small></div>
+       <div class="card"><div class="row"><b style="flex:1">Run #${(id.length*137)%900+88}</b><span class="pill ${p.state==='failed'?'p-failed':'p-done'}">${p.state==='failed'?'FAILED':'OK'}</span></div><small>${p.state==='failed'?'AI quota used up':'Completed'} · 1h ago</small></div>`:''}
+   </div>`);
+  $('#dChat').onclick=()=>openChat(p);
+  $('#dFollow')&&($('#dFollow').onclick=()=>startFollow(id));
+  $('#dNew')&&($('#dNew').onclick=()=>{$('#dForm').innerHTML=`<form class="card" id="ntf" style="cursor:default"><div class="sect" style="margin-top:0">New task for ${p.name}</div>
+     <input class="input" id="ntT" placeholder="e.g. Write 3 caption ideas for the teaser" style="margin-bottom:8px"/><textarea class="input" placeholder="Details or instructions (optional)"></textarea>
+     <div class="row" style="margin-top:8px;justify-content:flex-end"><button type="button" class="btn sm" id="ntC">Cancel</button><button class="btn sm primary">Start now</button></div></form>`;
+    $('#ntT').focus();$('#ntC').onclick=()=>$('#dForm').innerHTML='';
+    $('#ntf').onsubmit=ev=>{ev.preventDefault();const title=$('#ntT').value.trim()||'New task';const t={id:'n'+Date.now(),key:'NOA-'+(70+TASKS.length),title,agent:id,zone:p.zone,status:'in_progress',due:'—',flag:null};TASKS.push(t);
+      p.state='working';p.bubble=title;applyState(p);refreshUI();openPerson(id);toast(`Task <b>${title}</b> started on ${p.name}`,'check')}});
+}
+function openZone(id){
+  const z=ZONES[id];const list=people.filter(p=>p.zone===id);
+  if((z.level||1)!==viewLevel)setLevel(z.level||1,false);
+  flyTo(new THREE.Vector3((z.x0+z.x1)/2,.5+levelY(z.level||1),(z.z0+z.z1)/2),1.7);
+  const tasks=TASKS.filter(t=>t.zone===id&&!t.human);
+  showDrawer(`<div class="d-hero"><div class="big" style="background:${z.tint||'#5d7290'}">${ic(id==='meet'?'calendar':id==='srv'?'server':'office','i')}</div><div><h3>${z.name}</h3><p>${z.project?'Project room':id==='lounge'?'Agents without a project':'Shared space'}</p></div><button class="ib x">${ic('x','i')}</button></div>
+   ${z.project?`<div class="statusline" style="display:block"><div class="row" style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Progress</span><b style="font-family:var(--mono)">${z.progress[0]}/${z.progress[1]}</b></div><div class="bar"><i style="width:${z.progress[0]/z.progress[1]*100}%"></i></div></div>`:''}
+   ${id==='meet'?`<div class="d-actions"><button class="btn primary sm" id="zStand">${ic('calendar')}Start standup</button></div>`:''}
+   <div class="d-body">${list.length?`<div class="sect" style="padding:0 6px">Desks (${list.length})</div>`+list.map(p=>`<button class="card" data-person="${p.id}"><div class="row"><span class="dot" style="background:${p.kind==='bot'?COLORS[visualState(p)]:'#3ee6c1'}"></span><b style="flex:1">${p.name}</b><small>${STATE_LABEL[visualState(p)]}</small></div><small>${p.bubble}</small></button>`).join(''):''}
+   ${tasks.length?`<div class="sect" style="padding:0 6px">Tasks</div>`+tasks.map(taskCard).join(''):''}</div>`);
+  drawer.querySelectorAll('[data-person]').forEach(b=>b.onclick=()=>openPerson(b.dataset.person));
+  $('#zStand')&&($('#zStand').onclick=startStandup);
+}
+function openRack(id){
+  const r=RUNTIMES.find(x=>x.id===id);const ag=people.filter(p=>p.runtime===id);
+  flyTo(racks.find(x=>x.rt.id===id).g.position.clone().setY(1),2);
+  showDrawer(`<div class="d-hero"><div class="big" style="background:${r.online?'#3ee6c1':'#ff5d6c'}">${ic('server','i')}</div><div><h3>${r.name}</h3><p>Runtime · ${r.provider} · owner ${r.owner}</p></div><button class="ib x">${ic('x','i')}</button></div>
+   <div class="statusline"><span class="dot" style="background:${r.online?'var(--working)':'var(--failed)'}"></span><div><b>${r.online?'Online':'Laptop off'}</b><br><small style="color:var(--muted)">AI quota: ${r.quota}</small></div></div>
+   <div class="d-body"><div class="sect" style="padding:0 6px">Agents on this runtime (${ag.length})</div>${ag.map(p=>`<button class="card" data-person="${p.id}"><div class="row"><span class="dot" style="background:${COLORS[visualState(p)]}"></span><b style="flex:1">${p.name}</b><small>${p.role}</small></div></button>`).join('')}</div>`);
+  drawer.querySelectorAll('[data-person]').forEach(b=>b.onclick=()=>openPerson(b.dataset.person));
+}
+
+/* task modal */
+const DIFF=`<div class="diff"><div class="fh"><span>app/pricing/section.tsx</span><span style="color:#7cf3d9">+18 −6</span></div>
+<div class="l">@@ -12,9 +12,21 @@ export function Pricing() {</div>
+<div class="l del">-  return &lt;div className="grid"&gt;{plans.map(Card)}&lt;/div&gt;</div>
+<div class="l add">+  const [yearly, setYearly] = useState(false);</div>
+<div class="l add">+  const list = yearly ? plans.map(toYearly) : plans;</div>
+<div class="l add">+  return (</div>
+<div class="l add">+    &lt;section aria-label="Pricing"&gt;</div>
+<div class="l add">+      &lt;Toggle on={yearly} onChange={setYearly} /&gt;</div>
+<div class="l add">+      &lt;div className="grid"&gt;{list.map(Card)}&lt;/div&gt;</div>
+<div class="l add">+    &lt;/section&gt;</div>
+<div class="l add">+  );</div>
+<div class="l">   }</div></div>`;
+function openTask(id){
+  const t=TASKS.find(x=>x.id===id);const a=byId[t.agent];
+  if(a&&a.level!==viewLevel)setLevel(a.level,false);
+  if(a&&a.char.root.visible){flyTo(a.char.root.position.clone().add(new THREE.Vector3(0,.8,0)),2.1);selected=a.id;renderRoster()}
+  const m=$('#modal');let tab='out';
+  const render=()=>{
+  m.innerHTML=`<div class="m-left"><div class="m-head"><small>${t.key} · ${t.zone?ZONES[t.zone].name:''}</small><h2>${t.title}</h2>${pillFor(t)} <small style="color:var(--muted);margin-left:6px">${who(t)} · due ${t.due}</small></div>
+    ${t.diff?`<div><div class="m-tabs" role="tablist"><button role="tab" class="${tab==='out'?'on':''}" data-tab="out">${ic('file')}Output</button><button role="tab" class="${tab==='diff'?'on':''}" data-tab="diff">${ic('git')}Diff</button></div></div>`:''}
+    <div class="m-out">${tab==='diff'?DIFF:`
+      <h4>What I did</h4><p>${a?a.name:t.human} worked on <b>${t.title}</b>. I reviewed the brief, checked the latest assets in the project, and produced a first complete version.</p>
+      <h4>Result</h4><ul><li>Main deliverable attached as <code>${t.key.toLowerCase()}-v2.md</code></li><li>Two alternative directions for comparison</li><li>Notes on assumptions I made</li></ul>
+      <h4>Notes</h4><p>The tone follows the brand guide (“confident, warm, no jargon”). I kept every headline under 60 characters for mobile.</p>`}</div></div>
+    <div class="m-right"><div class="scroll">
+      <div class="sect">Summary</div><p style="margin:0;font-size:13px;color:#d7e1ec">First version is done and ready for your eyes. Two small decisions are needed before I finalise.</p>
+      <div class="sect">Questions from ${a?a.name:'the team'}</div>
+      <div class="q"><p>Which tone should the final version use?</p><div class="opts"><button class="opt">Formal</button><button class="opt">Playful</button><button class="opt">Keep both</button></div></div>
+      <div class="q"><p>Ship to staging after approval?</p><div class="opts"><button class="opt">Yes</button><button class="opt">Wait for Sarah</button></div></div>
+      <div class="sect">Comment</div><textarea class="input" placeholder="Type @ to mention someone…"></textarea>
+    </div><div class="m-foot"><button class="btn" id="mClose">Close</button><button class="btn danger" id="mChanges">Request changes</button><button class="btn primary" id="mApprove">${ic('check')}Approve</button></div></div>`;
+  m.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
+  m.querySelectorAll('.opts').forEach(o=>o.addEventListener('click',e=>{const b=e.target.closest('.opt');if(!b)return;o.querySelectorAll('.opt').forEach(x=>x.classList.toggle('on',x===b))}));
+  $('#mClose').onclick=closeModal;
+  $('#mApprove').onclick=()=>{t.status='done';t.flag=null;if(a){a.state='ready';a.bubble='Done · waiting for next task';applyState(a)}closeModal();refreshUI();toast(`Approved <b>${t.title}</b>`,'check')};
+  $('#mChanges').onclick=()=>{t.status='in_progress';if(a){a.state='working';a.bubble='Revising: '+t.title;applyState(a)}closeModal();refreshUI();toast(`Changes requested on <b>${t.title}</b>`,'rotL')};
+  };
+  render();$('#scrim').classList.add('show');
+}
+function closeModal(){$('#scrim').classList.remove('show')}
+$('#scrim').addEventListener('click',e=>{if(e.target.id==='scrim')closeModal()});
+drawer.addEventListener('click',e=>{const t=e.target.closest('[data-task]');if(t)openTask(t.dataset.task)});
+
+/* chat */
+let chatPerson=byId.mika;
+const chatLogs={mika:[['them','Hi Beny 👋 Two things need you today: Lumi\'s hero copy (2 days late) and Vex\'s carousel review.']]};
+function openChat(p){chatPerson=p;$('#chat').classList.add('show');$('#chatName').textContent=p.name;$('#chatSub').textContent=`${p.role} · ${p.kind==='bot'?STATE_LABEL[visualState(p)].toLowerCase():p.bubble.toLowerCase()}`;
+  $('#chatAv').textContent=p.id==='mika'?'✦':p.name[0];$('#chatAv').style.background=p.id==='mika'?'linear-gradient(145deg,#c4b5ff,#7a63ff)':(p.kind==='bot'?avColor(p.id):p.shirt);
+  chatLogs[p.id]??=[['them',p.kind==='bot'?`Hey! I'm ${p.name}. ${p.bubble}.`:`Hi, it's ${p.name}.`]];renderMsgs();$('#chatIn').focus()}
+function renderMsgs(){const box=$('#msgs');box.innerHTML=chatLogs[chatPerson.id].map(([w,t])=>`<div class="msg ${w}">${t}</div>`).join('');box.scrollTop=1e6}
+$('#mikaFab').onclick=()=>{$('#chat').classList.contains('show')&&chatPerson.id==='mika'?$('#chat').classList.remove('show'):openChat(byId.mika)};
+$('#chatClose').onclick=()=>$('#chat').classList.remove('show');
+$('#compose').onsubmit=e=>{e.preventDefault();const v=$('#chatIn').value.trim();if(!v)return;const log=chatLogs[chatPerson.id];log.push(['me',v]);$('#chatIn').value='';renderMsgs();
+  setTimeout(()=>{const c=counts();log.push(['them',chatPerson.id==='mika'?`On it. Right now ${c.working} agents are working, ${c.review} are waiting for review and ${c.failed} failed. Want me to start a standup?`:'Got it — I\'ll add that to my current task and report back in the summary.']);renderMsgs()},700)};
+
+/* toasts */
+function toast(html,icon='spark'){const t=document.createElement('div');t.className='toast glass';t.innerHTML=`<span style="color:var(--accent)">${ic(icon)}</span><span>${html}</span>`;$('#toasts').appendChild(t);
+  setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.remove(),420)},3800)}
+
+function refreshUI(){renderRoster();renderStats();renderHQ();drawWall(performance.now()/1000)}
+
+/* =========================================================
+   FEATURES: open/close, follow, walk, standup, music, edit
+   ========================================================= */
+$('#openToggle').onclick=()=>{
+  officeOpen=!officeOpen;$('#openSwitch').classList.toggle('on',officeOpen);$('#openLabel').textContent=officeOpen?'Office open':'Office closed';
+  $('#banner').classList.toggle('show',!officeOpen);
+  people.forEach(p=>{if(p.kind==='bot'&&!officeOpen&&(p.mode==='sofa'||p.mode==='walk')){p.path=null;placeAtSeat(p)}applyState(p)});
+  hemi.intensity=officeOpen?.85:.3;sun.intensity=officeOpen?1.7:.55;bloom.strength=officeOpen?.75:.45;
+  refreshUI();toast(officeOpen?'Office opened — agents resume work':'Office closed — agent work paused','power');
+};
+function startFollow(id){const p=byId[id];if(!p.char.root.visible){toast(`${p.name} isn't in the office right now`,'alert');return}
+  follow=p;$('#follow').classList.add('show');$('#followTxt').innerHTML=`Following <b>${p.name}</b>`;$('#banner').classList.remove('show');
+  camera.zoom=Math.max(camera.zoom,2.2);camera.updateProjectionMatrix()}
+$('#followStop').onclick=()=>{follow=null;$('#follow').classList.remove('show');!officeOpen&&$('#banner').classList.add('show')};
+
+$('#tRotL').onclick=()=>rotateView(-1);$('#tRotR').onclick=()=>rotateView(1);
+$('#tZoomIn').onclick=()=>{camera.zoom=Math.min(4,camera.zoom*1.25);camera.updateProjectionMatrix()};
+$('#tZoomOut').onclick=()=>{camera.zoom=Math.max(.55,camera.zoom/1.25);camera.updateProjectionMatrix()};
+$('#tReset').onclick=resetView;
+$('#tLabels').onclick=()=>{document.body.classList.toggle('nolabels');$('#tLabels').classList.toggle('on')};
+$('#tWalk').onclick=()=>{walkMode=!walkMode;$('#tWalk').classList.toggle('on',walkMode);toast(walkMode?'Walk mode: <b>W A S D</b> to move, drag to look around':'Walk mode off','move');if(walkMode){camera.zoom=Math.max(camera.zoom,1.8);camera.updateProjectionMatrix()}};
+$('#tEdit').onclick=()=>{editing=!editing;setTimeout(updateGhosts);document.body.classList.toggle('editing',editing);$('#tEdit').classList.toggle('on',editing);editGrid.visible=editing;if(!editing){showBox(null);tip.style.display='none'}
+  toast(editing?'Edit layout: drag desks, sofas & plants. Click <b>Edit</b> again to save.':'Layout saved (mock)','pencil')};
+const editGrid=new THREE.GridHelper(40,80,'#3ee6c1','#1e3a44');editGrid.position.y=.07;editGrid.material.transparent=true;editGrid.material.opacity=.25;editGrid.visible=false;scene.add(editGrid);
+
+const keys=new Set();
+addEventListener('keydown',e=>{
+  if(e.target.closest('input,textarea'))return;
+  const k=e.key.toLowerCase();keys.add(k);
+  if(k==='q')rotateView(-1);if(k==='e')rotateView(1);if(k==='r')resetView();if(k==='l')$('#tLabels').click();
+  if(k==='escape'){if($('#npScrim').classList.contains('show'))closeNP();else if($('#scrim').classList.contains('show'))closeModal();else if(follow)$('#followStop').click();else closeDrawer()}
+});
+addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+
+/* standup */
+const STANDUP_SAY={arka:'Pricing section 80% · blocker: none',lumi:'Hero copy v2 waiting for review',kode:'Regression suite 112/130 passing',nara:'3 of 5 carousels drafted',vex:'Carousel set ready, needs approval',sora:'ETL report queued for Wed',rhea:'Blocked: AI quota resets 14:00',mika:'2 reviews and 1 late task need Beny',pixel:'Free — can pick up illustrations'};
+function startStandup(){
+  if(standup||!officeOpen){toast(officeOpen?'Standup already running':'Open the office first','alert');return}
+  const parts=people.filter(p=>p.kind==='bot'&&p.level===1&&p.char.root.visible);
+  if(!parts.length)return;
+  standup={parts,i:-1,next:0};standupLines=[];
+  closeDrawer();flyTo(MC.clone().setY(.6),1.55,1200);
+  parts.forEach((p,k)=>{const a=k/parts.length*Math.PI*2;const pos=MC.clone().add(new THREE.Vector3(Math.sin(a)*2.35,0,Math.cos(a)*2.35));
+    p.prevMode=p.mode;walk(p,pos,a+Math.PI,'stand')});
+  $('#standup').innerHTML=`<h4>${ic('calendar')}Daily standup <span class="pill p-doing" style="margin-left:auto">LIVE</span></h4><div id="suList"><p style="color:var(--muted);font-size:12.5px;margin:4px 0">Agents are walking to the meeting room…</p></div>`;
+  $('#standup').classList.add('show');$('#tStandup').classList.add('on');drawMeetScreen();
+}
+function standupTick(now){
+  if(!standup)return;
+  const arrived=standup.parts.every(p=>p.mode==='stand');
+  if(!arrived||now<standup.next)return;
+  standup.parts.forEach(p=>p.tag.classList.remove('speak'));
+  standup.i++;
+  if(standup.i>=standup.parts.length){
+    standup.parts.forEach(p=>{p.tag.classList.remove('speak');p.state==='break'?goSofa(p):goSeat(p)});
+    toast('Standup done — summary posted to <b>Inbox</b>','check');INBOX.unshift({t:'Standup summary',d:`${standup.parts.length} agents · 1 blocker (Rhea)`,w:'now',k:'calendar'});
+    standup=null;$('#standup').classList.remove('show');$('#tStandup').classList.remove('on');drawMeetScreen();renderHQ();return;
+  }
+  if(standup.i===0)$('#suList').innerHTML='';
+  const p=standup.parts[standup.i];p.tag.classList.add('speak');
+  const line=STANDUP_SAY[p.id]||p.bubble;standupLines.push(`${p.name}: ${line}`);drawMeetScreen();
+  $('#suList').insertAdjacentHTML('beforeend',`<div class="su-line"><b>${p.name}</b><span>${line}</span></div>`);
+  const list=$('#suList');while(list.children.length>5)list.firstChild.remove();
+  standup.next=now+2100;
+}
+$('#tStandup').onclick=startStandup;
+
+/* music: generative lo-fi via WebAudio */
+const music={ctx:null,on:false,vol:.45};
+function mtof(m){return 440*Math.pow(2,(m-69)/12)}
+function startMusic(){
+  if(!music.ctx){
+    const ctx=new AudioContext();music.ctx=ctx;
+    music.master=ctx.createGain();music.master.gain.value=0;
+    music.lp=ctx.createBiquadFilter();music.lp.type='lowpass';music.lp.frequency.value=1800;
+    music.lp.connect(music.master);music.master.connect(ctx.destination);
+    music.an=ctx.createAnalyser();music.an.fftSize=64;music.master.connect(music.an);
+    // vinyl crackle
+    const nb=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate),d=nb.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()<.0008?(Math.random()*2-1):0)+(Math.random()*2-1)*.012;
+    const ns=ctx.createBufferSource();ns.buffer=nb;ns.loop=true;const ng=ctx.createGain();ng.gain.value=.5;ns.connect(ng);ng.connect(music.master);ns.start();
+    music.next=ctx.currentTime+.1;music.bar=0;
+    setInterval(schedule,100);
+  }
+  music.ctx.resume();music.on=true;music.master.gain.setTargetAtTime(music.vol*.5,music.ctx.currentTime,.4);
+}
+function stopMusic(){if(!music.ctx)return;music.on=false;music.master.gain.setTargetAtTime(0,music.ctx.currentTime,.3)}
+const CHORDS=[['Am7',[57,60,64,67]],['Fmaj7',[53,57,60,64]],['Cmaj7',[48,55,59,64]],['G6',[55,59,62,64]]];
+function voice(type,freq,t,dur,gain,dest){const c=music.ctx,o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=freq;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(gain,t+Math.min(.5,dur*.3));g.gain.setTargetAtTime(0,t+dur*.7,dur*.15);o.connect(g);g.connect(dest);o.start(t);o.stop(t+dur+1)}
+function schedule(){
+  const c=music.ctx;if(!music.on)return;const beat=60/72;
+  while(music.next<c.currentTime+.4){
+    const t=music.next,[name,notes]=CHORDS[music.bar%4];
+    $('#mChord').textContent=`generative · 72 bpm · ${name}`;
+    notes.forEach(n=>{voice('triangle',mtof(n),t,beat*4,.035,music.lp);voice('sine',mtof(n)*1.003,t,beat*4,.03,music.lp)});
+    voice('sine',mtof(notes[0]-12),t,beat*3.5,.09,music.lp);
+    for(let b=0;b<4;b++){const bt=t+b*beat;
+      if(b%2===0){const o=c.createOscillator(),g=c.createGain();o.frequency.setValueAtTime(110,bt);o.frequency.exponentialRampToValueAtTime(40,bt+.18);g.gain.setValueAtTime(.35,bt);g.gain.exponentialRampToValueAtTime(.001,bt+.3);o.connect(g);g.connect(music.master);o.start(bt);o.stop(bt+.35)}
+      const hb=c.createBuffer(1,c.sampleRate*.05,c.sampleRate),hd=hb.getChannelData(0);for(let i=0;i<hd.length;i++)hd[i]=(Math.random()*2-1)*(1-i/hd.length);
+      const hs=c.createBufferSource();hs.buffer=hb;const hp=c.createBiquadFilter();hp.type='highpass';hp.frequency.value=7000;const hg=c.createGain();hg.gain.value=.05;hs.connect(hp);hp.connect(hg);hg.connect(music.master);hs.start(bt+beat/2);
+      for(const h of [0,.5])if(Math.random()<.32){const pen=[69,72,74,76,79,81];voice('sine',mtof(pen[Math.floor(Math.random()*pen.length)]),bt+h*beat,beat*.9,.05,music.lp)}
+    }
+    music.next+=beat*4;music.bar++;
+  }
+}
+$('#tMusic').onclick=()=>{$('#music').classList.toggle('show');$('#tMusic').classList.toggle('on',$('#music').classList.contains('show')||music.on)};
+$('#mPlay').onclick=()=>{music.on?stopMusic():startMusic();$('#mPlay').innerHTML=ic(music.on?'pause':'play');$('#tMusic').classList.add('on')};
+$('#mVol').oninput=e=>{music.vol=e.target.value/100;if(music.ctx&&music.on)music.master.gain.setTargetAtTime(music.vol*.5,music.ctx.currentTime,.1)};
+
+/* =========================================================
+   SIMULATION (fake live updates)
+   ========================================================= */
+const SIM=[['working','Working on the next step'],['review','Finished — ready for review'],['ready','Queued: 1 task'],['working','Writing the summary'],['break','Taking a short break']];
+setInterval(()=>{
+  if(!officeOpen||standup||REDUCED)return;
+  const pool=people.filter(p=>p.kind==='bot'&&p.mode!=='walk'&&!['off','failed'].includes(p.state)&&p.id!=='mika');
+  const p=pool[Math.floor(Math.random()*pool.length)];if(!p)return;
+  let [st,txt]=SIM[Math.floor(Math.random()*SIM.length)];if(st===p.state)return;
+  if(p.state==='break'&&st==='break')return;
+  if(p.level>1&&st==='break')return; // lounge is on Level 1
+  p.state=st;p.bubble=txt;applyState(p);refreshUI();
+  toast(`${p.name} → <b>${STATE_LABEL[st]}</b>`,st==='review'?'file':st==='break'?'clock':'spark');
+},7000);
+setInterval(()=>{
+  if(!officeOpen||standup||REDUCED)return;
+  const seated=people.filter(p=>p.kind==='bot'&&p.level===viewLevel&&p.mode==='seat'&&p.char.root.visible&&p.state!=='failed');
+  if(seated.length<2)return;const a=seated[Math.floor(Math.random()*seated.length)];let b;do{b=seated[Math.floor(Math.random()*seated.length)]}while(b===a);
+  handover(a,b,['QA notes','Copy draft','Design tokens','Dataset v3','Release checklist'][Math.floor(Math.random()*5)]);
+},13000);
+
+/* =========================================================
+   LOOP
+   ========================================================= */
+const clock=new THREE.Clock();let lastScreens=0,lastWall=0;
+const tmp=new THREE.Vector3();
+const _m=new THREE.Matrix4(),_p=new THREE.Vector3();
+let lastFrame=0,lastShadow=0,lastInteract=performance.now();
+for(const ev of ['pointermove','pointerdown','wheel','keydown'])addEventListener(ev,()=>lastInteract=performance.now(),{passive:true});
+function animate(){
+  requestAnimationFrame(animate);
+  // idle throttle: nobody touching the page and nothing moving -> 30 fps is plenty
+  const nowA=performance.now();
+  const busy=tween||anims.length||packets.length||follow||keys.size||drag||standup||people.some(p=>p.mode==='walk');
+  if(!busy&&nowA-lastInteract>5000&&nowA-lastFrame<32)return;
+  lastFrame=nowA;
+  if(nowA-lastShadow>66){renderer.shadowMap.needsUpdate=true;lastShadow=nowA}
+  const dt=Math.min(clock.getDelta(),.05),t=clock.elapsedTime,now=performance.now();
+  if(tween&&!tween.update(now))tween=null;
+  runAnims(now);elevTick(t);
+
+  // walk mode (WASD pans along ground)
+  if(walkMode||keys.size){
+    const f=new THREE.Vector3();camera.getWorldDirection(f);f.y=0;f.normalize();const r=new THREE.Vector3().crossVectors(f,new THREE.Vector3(0,1,0));
+    const mv=new THREE.Vector3();if(keys.has('w')||keys.has('arrowup'))mv.add(f);if(keys.has('s')||keys.has('arrowdown'))mv.sub(f);if(keys.has('d')||keys.has('arrowright'))mv.add(r);if(keys.has('a')||keys.has('arrowleft'))mv.sub(r);
+    if(mv.lengthSq()){mv.normalize().multiplyScalar(dt*9/camera.zoom);controls.target.add(mv);camera.position.add(mv);if(follow){follow=null;$('#follow').classList.remove('show')}}
+  }
+  if(follow){const off=camera.position.clone().sub(controls.target);tmp.copy(follow.char.root.position);tmp.y+=.9;controls.target.lerp(tmp,.08);camera.position.copy(controls.target).add(off)}
+  controls.update();
+
+  for(const p of people){
+    const c=p.char;p.label.visible=c.root.visible&&p.level===viewLevel;if(!c.root.visible)continue;
+    const st=visualState(p);
+    // walking
+    if(p.mode==='walk'&&p.path){
+      const target=p.path[0];tmp.copy(target).sub(c.root.position);tmp.y=0;const d=tmp.length();
+      if(d<.06){p.path.shift();if(!p.path.length){p.mode=p.endMode;c.root.rotation.y=p.endRot;c.root.position.y=p.endY;
+          if(p.endMode==='seat')placeAtSeat(p);applyState(p)}}
+      else{const step=Math.min(d,dt*2.6);tmp.normalize();c.root.position.addScaledVector(tmp,step);
+        const want=Math.atan2(tmp.x,tmp.z);let dr=want-c.root.rotation.y;dr=Math.atan2(Math.sin(dr),Math.cos(dr));c.root.rotation.y+=dr*Math.min(1,dt*12)}
+    }
+    const sitting=p.mode==='seat'||p.mode==='sofa';
+    const walking=p.mode==='walk';
+    const sw=walking?Math.sin(t*10+p.phase)*.6:0;
+    c.legL.rotation.x=sitting?-Math.PI/2:sw;c.legR.rotation.x=sitting?-Math.PI/2:-sw;
+    c.body.position.y=sitting?(p.mode==='sofa'?-.02:.0):walking?Math.abs(Math.sin(t*10+p.phase))*.04:0;
+    let armX=walking?-sw*.8:0;
+    if(p.mode==='seat'&&(st==='working'||(p.kind==='human'&&st==='here')))armX=-1.15+Math.sin(t*(p.kind==='human'?6:18)+p.phase)*.08;
+    if(p.mode==='stand'&&p.tag.classList.contains('speak'))armX=-.6+Math.sin(t*4)*.4;
+    c.armL.rotation.x=armX;c.armR.rotation.x=p.mode==='seat'&&st==='working'?-1.15+Math.sin(t*18+p.phase+1.6)*.08:(walking?sw*.8:armX);
+    c.head.rotation.y=p.mode==='sofa'?Math.sin(t*.5+p.phase)*.35:st==='ready'?Math.sin(t*.8+p.phase)*.25:0;
+    c.head.rotation.x=st==='failed'&&p.mode==='seat'?.25:0;
+    // gem & ring
+    if(c.gem.visible){c.gem.position.y=1.85+Math.sin(t*2.4+p.phase)*.07+(p.tag.classList.contains('speak')?.15:0);c.gem.rotation.y=t*1.6;
+      const blink=st==='failed'?(Math.sin(t*8)>0?1:.25):1;c.gem.scale.setScalar((st==='review'?1.25:1)*blink)}
+    if(c.ring.visible){const k=st==='working'?.5+Math.sin(t*3+p.phase)*.25:st==='failed'?(Math.sin(t*8)>0?.8:.2):.45;c.ring.material.opacity=k;
+      const s=st==='working'?1+Math.sin(t*3+p.phase)*.06:1;c.ring.scale.setScalar(s)}
+  }
+  // packets
+  for(let i=packets.length-1;i>=0;i--){const k=packets[i];k.t+=dt/1.7;
+    if(k.t>=1){scene.remove(k.m);scene.remove(k.tl);k.m.material.dispose();k.tl.geometry.dispose();k.tl.material.dispose();packets.splice(i,1);continue}
+    k.m.position.copy(k.curve.getPoint(k.t));k.m.scale.setScalar(1+Math.sin(k.t*Math.PI)*.6);k.tl.material.opacity=Math.sin(k.t*Math.PI)*.55}
+  holo.rotation.y=t*.6;holo.material.opacity=standup?.85:.35+Math.sin(t*2)*.1;
+  // screens
+  if(now-lastScreens>350){lastScreens=now;for(const p of people){const st=visualState(p);if(['working','failed','ready','break'].includes(st))drawMonitor(p,t)}
+    for(const r of racks){if(!r.rt.online)continue;const L=r.leds,on=L.userData.on;let ch=false;
+      for(let i=0;i<36;i++)if(Math.random()<.08){on[i]=!on[i];ch=true;L.getMatrixAt(i,_m);_p.setFromMatrixPosition(_m);L.setMatrixAt(i,_m.makeScale(on[i]?1:0,on[i]?1:0,1).setPosition(_p))}
+      if(ch)L.instanceMatrix.needsUpdate=true}}
+  if(now-lastWall>600){lastWall=now;drawWall(t)}
+  standupTick(now);
+  renderer.info.reset();
+  composer.render();
+  window.__frameCalls=renderer.info.render.calls;
+  labelRenderer.render(scene,camera);
+}
+
+/* =========================================================
+   LEVELS · ROOM SLOTS · NEW PROJECT
+   Rule: a new project takes the first free slot that fits its desks.
+   When no slot fits on any floor, a new level is stacked on top.
+   ========================================================= */
+const anims=[];
+function anim(dur,fn,delay=0){return new Promise(res=>anims.push({t0:performance.now()+delay,dur,fn,res}))}
+function runAnims(now){for(let i=anims.length-1;i>=0;i--){const a=anims[i];const k=(now-a.t0)/a.dur;if(k<0)continue;const c=Math.min(1,k);a.fn(c);if(c>=1){anims.splice(i,1);a.res()}}}
+const easeOut=k=>1-Math.pow(1-k,3);
+const easeBack=k=>{const c1=1.4,c3=c1+1;return 1+c3*Math.pow(k-1,3)+c1*Math.pow(k-1,2)};
+function isShown(o){if(o.userData.hit)o=o.parent;while(o){if(!o.visible)return false;o=o.parent}return true}
+
+const levelGroups={1:scene};
+let levels=1;
+const SLOTS={
+  1:[{id:'1A',x0:-15,x1:-6.4,z0:-.4,z1:3.3}],
+  2:[{id:'2A',x0:-15,x1:-6.4,z0:-5.8,z1:-1.9},{id:'2B',x0:-3,x1:4.2,z0:-9.8,z1:-2.4},{id:'2C',x0:6.2,x1:13.4,z0:-10.4,z1:-2.4},
+     {id:'2D',x0:-15,x1:-6.4,z0:-.6,z1:4},{id:'2E',x0:-3,x1:4.2,z0:-.6,z1:4},{id:'2F',x0:6.4,x1:13.4,z0:-.6,z1:4},
+     {id:'2G',x0:-15,x1:-6.4,z0:5.2,z1:10.2},{id:'2H',x0:-2.6,x1:5.2,z0:5.2,z1:10.2}],
+};
+for(const [l,list] of Object.entries(SLOTS))list.forEach(s=>{s.level=+l;s.used=false});
+const slotById=id=>Object.values(SLOTS).flat().find(s=>s.id===id);
+const slotCap=s=>Math.max(1,Math.floor((s.x1-s.x0-1)/1.75))*((s.z1-s.z0)>=3.2?2:1);
+
+/* ghost slot: dashed outline + floating "+ New project room" button */
+const ghosts={};
+function makeGhost(s){
+  const w=s.x1-s.x0,d=s.z1-s.z0;
+  const g=new THREE.Group();g.position.set((s.x0+s.x1)/2,levelY(s.level),(s.z0+s.z1)/2);
+  const plate=new THREE.Mesh(RB(w,.03,d,.25,3),new THREE.MeshBasicMaterial({color:'#3ee6c1',transparent:true,opacity:.05,depthWrite:false}));
+  plate.position.y=.02;g.add(plate);plate.userData.pick={type:'slot',id:s.id,level:s.level};pickables.push(plate);
+  const pts=[[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2],[-w/2,-d/2]].map(([x,z])=>new THREE.Vector3(x,.07,z));
+  const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineDashedMaterial({color:new THREE.Color('#3ee6c1').multiplyScalar(1.5),dashSize:.4,gapSize:.28,toneMapped:false}));
+  line.computeLineDistances();g.add(line);
+  const el=document.createElement('button');el.className='ghost-btn';el.type='button';
+  el.innerHTML=`<span>${ic('plus')}New project room</span><small>up to ${slotCap(s)} desks · L${s.level}</small>`;
+  el.addEventListener('click',e=>{e.stopPropagation();openNewProject(s.id)});
+  const lb=new CSS2DObject(el);lb.position.set(0,.4,0);g.add(lb);
+  levelGroups[s.level].add(g);ghosts[s.id]={g,plate,lb};
+}
+function updateGhosts(){
+  // every free slot shows its dashed outline; only the next one gets the button, to keep the floor calm
+  const next=(SLOTS[viewLevel]||[]).find(s=>!s.used);
+  for(const [id,gh] of Object.entries(ghosts)){const s=slotById(id);const show=!s.used&&s.level===viewLevel&&!editing;gh.g.visible=show;gh.lb.visible=show&&s===next}
+}
+
+/* elevator: glass shaft that grows when a new floor is stacked */
+const elev=new THREE.Group();elev.position.set(-4.7,0,7.6);scene.add(elev);
+const shaft=new THREE.Group();elev.add(shaft);
+{
+  const tube=new THREE.Mesh(GEO.Cylinder(.72,.72,1,28,1,true),new THREE.MeshStandardMaterial({color:'#7fe9d3',transparent:true,opacity:.14,roughness:.05,metalness:.2,depthWrite:false,side:THREE.DoubleSide}));
+  tube.position.y=.5;shaft.add(tube);
+  const v=[];for(let i=0;i<8;i++){const a=i/8*Math.PI*2;v.push(Math.sin(a)*.72,0,Math.cos(a)*.72,Math.sin(a)*.72,1,Math.cos(a)*.72)}
+  const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
+  shaft.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:'#3ee6c1',transparent:true,opacity:.45})));
+  const hit=new THREE.Mesh(GEO.Cylinder(.8,.8,1,12),HIT_MAT);hit.visible=false;hit.userData.hit=true;
+  hit.position.y=.5;shaft.add(hit);hit.userData.pick={type:'elev',level:'any'};pickables.push(hit);
+}
+const ringMat=glow('#3ee6c1',1.8,{side:THREE.DoubleSide});
+const ringBottom=new THREE.Mesh(GEO.Torus(.74,.03,8,40),ringMat);ringBottom.rotation.x=Math.PI/2;ringBottom.position.y=.08;elev.add(ringBottom);
+const ringTop=ringBottom.clone();elev.add(ringTop);
+const cab=new THREE.Mesh(GEO.Cylinder(.62,.62,.06,28),glow('#3ee6c1',1.3,{transparent:true,opacity:.75}));elev.add(cab);
+let elevH=2.6;
+function setElevH(h){elevH=h;shaft.scale.y=h;ringTop.position.y=h}
+setElevH(elevH);
+function elevTick(t){cab.position.y=.1+(Math.sin(t*.7)*.5+.5)*(elevH-.4)}
+
+/* building a new floor on top */
+function buildLevel(n){
+  const G=new THREE.Group();scene.add(G);levelGroups[n]=G;levels=n;
+  const y=levelY(n);
+  slab(inA,R,levelY(n-1)+1,y-.5,M.glassBand,null,G);
+  mullions(inA,levelY(n-1)+1,y-.5,1.3,.35,G);
+  const t2=slab(FLOOR,R,y-.5,y,[M.floor,M.slabSide],null,G);
+  outline(t2.shape,y+.012,'#3ee6c1',1.4,.9,G);outline(t2.shape,y-.5,'#3ee6c1',1,.5,G);
+  slab(rOut,R,y,y+.95,M.rail,rIn,G).mesh.castShadow=false;
+  outline(drawRounded(new THREE.Shape(),inset(FLOOR,.16),R),y+.95,'#9ff5e0',1.3,.75,G);
+  const ft=floorText(`Level ${n}`,4);ft.position.set(-4.7,y+.06,5.4);G.add(ft);
+  for(const [x,z,s] of [[-15,-5.6,1],[13.4,-10.6,1.1],[13,4.2,1],[-15,10.2,1.15],[5.4,10,1]])makePlant(x,z,s,G,y,n);
+  SLOTS[n].forEach(makeGhost);
+  return G;
+}
+
+function setLevel(n,fly=true){
+  viewLevel=n;
+  for(let l=2;l<=levels;l++)levelGroups[l].visible=l<=n;
+  if(follow&&follow.level!==n){follow=null;$('#follow').classList.remove('show')}
+  people.forEach(applyState);updateGhosts();renderLevels();
+  if(fly){const t=controls.target.clone();t.y=HOME_TARGET.y+levelY(n);flyTo(t,camera.zoom,750)}
+}
+function renderLevels(){
+  const rooms=l=>Object.values(ZONES).filter(z=>z.project&&(z.level||1)===l).length;
+  let html='';
+  if(levels===1)html+=`<button class="lv ghost" disabled title="Level 2 is built automatically when Level 1 is full">L2<small>—</small></button>`;
+  for(let l=levels;l>=1;l--)html+=`<button class="lv ${l===viewLevel?'on':''}" data-lv="${l}" title="Level ${l} · ${rooms(l)} project rooms">L${l}<small>${rooms(l)} rm</small></button>`;
+  $('#lvBtns').innerHTML=html;
+}
+$('#lvBtns').addEventListener('click',e=>{const b=e.target.closest('[data-lv]');if(b&&+b.dataset.lv!==viewLevel)setLevel(+b.dataset.lv)});
+
+/* placement rule */
+function choosePlacement(n,prefer){
+  if(prefer){const s=slotById(prefer);if(s&&!s.used&&slotCap(s)>=n)return{slot:s,newLevel:false}}
+  for(let l=1;l<=levels;l++)for(const s of SLOTS[l])if(!s.used&&slotCap(s)>=n)return{slot:s,newLevel:false};
+  if(SLOTS[levels+1]){const s=SLOTS[levels+1].find(x=>slotCap(x)>=n);if(s)return{slot:s,newLevel:true}}
+  return null;
+}
+function miniMap(pl){
+  const level=pl?.slot.level||1;
+  const r=(z,a)=>`<rect x="${z.x0}" y="${z.z0}" width="${z.x1-z.x0}" height="${z.z1-z.z0}" rx=".6" ${a}/>`;
+  let out=`<polygon points="${FLOOR.map(p=>p.join(',')).join(' ')}" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.28)" stroke-width=".22"/>`;
+  for(const z of Object.values(ZONES))if((z.level||1)===level)out+=r(z,'fill="rgba(255,255,255,.12)"');
+  for(const s of SLOTS[level]||[])if(!s.used&&s!==pl?.slot)out+=r(s,'fill="none" stroke="rgba(62,230,193,.55)" stroke-width=".2" stroke-dasharray=".7 .45"');
+  if(pl)out+=r(pl.slot,`fill="${npState.tint}" fill-opacity=".5" stroke="${npState.tint}" stroke-width=".3"`).replace('/>','><animate attributeName="opacity" values="1;.45;1" dur="1.6s" repeatCount="indefinite"/></rect>');
+  return `<svg class="map" viewBox="-16.6 -11.8 31.4 23.4">${out}<text x="-15.6" y="-8.9" fill="rgba(235,242,250,.55)" font-size="1.7" font-family="JetBrains Mono">L${level}</text></svg>`;
+}
+
+/* new project form */
+const ROLE_POOL=['Engineer','Designer','Writer','Researcher','QA','Analyst','Marketer'];
+const NAME_POOL=['Orion','Kai','Zeta','Lyra','Nova','Echo','Atlas','Iris','Remy','Tala','Milo','Sena','Bima','Ayu','Raka','Dewi'];
+const TINTS=['#3ee6c1','#7aa2ff','#a08cff','#f5b84b','#ff8d98'];
+let npState=null;
+function openNewProject(slotId){
+  if(editing)return;
+  npState={slotId,tint:TINTS[Object.keys(ZONES).length%TINTS.length],roles:['Engineer','Designer']};
+  const np=$('#np');
+  np.innerHTML=`
+   <div class="np-h"><div class="big" id="npIcon">${ic('plus','i')}</div><div style="flex:1"><h3>New project</h3><p>Creates the project in Multica and a room for it in the office.</p></div><button type="button" class="ib" id="npX">${ic('x','i')}</button></div>
+   <div class="field"><label for="npName">Project name</label><input class="input" id="npName" placeholder="e.g. Mobile App Launch" required /></div>
+   <div class="field"><span class="lbl">Room colour</span><div class="sw" id="npSw">${TINTS.map(c=>`<button type="button" data-c="${c}" style="background:${c}" aria-label="Colour ${c}"></button>`).join('')}</div></div>
+   <div class="field"><span class="lbl">Agents in this room</span><div class="opts" id="npRoles">${ROLE_POOL.map(r=>`<button type="button" class="opt" data-r="${r}">${r}</button>`).join('')}</div></div>
+   <div class="field"><label for="npRt">Runtime</label><select class="input" id="npRt">${RUNTIMES.filter(r=>r.online).map(r=>`<option value="${r.id}">${r.name} · ${r.provider}</option>`).join('')}</select></div>
+   <div class="place" id="npPlace"></div>
+   <div class="np-foot"><button type="button" class="btn" id="npCancel">Cancel</button><button class="btn primary" id="npGo">${ic('check')}Create project</button></div>`;
+  const sync=()=>{
+    np.querySelectorAll('#npSw button').forEach(b=>b.classList.toggle('on',b.dataset.c===npState.tint));
+    np.querySelectorAll('#npRoles .opt').forEach(b=>b.classList.toggle('on',npState.roles.includes(b.dataset.r)));
+    $('#npIcon').style.background=npState.tint;
+    const n=npState.roles.length,pl=choosePlacement(Math.max(1,n),npState.slotId);
+    $('#npGo').disabled=!n||!pl;
+    $('#npPlace').innerHTML=pl?`${miniMap(pl)}<div><b>Level ${pl.slot.level} · room slot ${pl.slot.id}</b>
+      <small>${n} desk${n===1?'':'s'} of ${slotCap(pl.slot)} available.${pl.slot.id===npState.slotId?' The slot you picked.':' First free slot that fits.'}</small>
+      ${pl.newLevel?`<span class="tagnew">Level ${levels} is full → Level ${pl.slot.level} will be built</span>`:''}</div>`
+      :`<div><b>No room left</b><small>Every slot is taken. Archive a project or pick fewer agents.</small></div>`;
+  };
+  np.querySelector('#npSw').onclick=e=>{const b=e.target.closest('button');if(b){npState.tint=b.dataset.c;sync()}};
+  np.querySelector('#npRoles').onclick=e=>{const b=e.target.closest('.opt');if(!b)return;const r=b.dataset.r;npState.roles=npState.roles.includes(r)?npState.roles.filter(x=>x!==r):[...npState.roles,r];sync()};
+  $('#npX').onclick=$('#npCancel').onclick=closeNP;
+  np.onsubmit=e=>{e.preventDefault();const name=$('#npName').value.trim();if(!name){$('#npName').focus();return}
+    createProject({name,tint:npState.tint,roles:[...npState.roles],runtime:$('#npRt').value,slotId:npState.slotId})};
+  sync();$('#npScrim').classList.add('show');setTimeout(()=>$('#npName').focus(),50);
+}
+function closeNP(){$('#npScrim').classList.remove('show')}
+$('#npScrim').addEventListener('click',e=>{if(e.target.id==='npScrim')closeNP()});
+$('#dkNew').onclick=()=>openNewProject();
+
+async function createProject({name,tint,roles,runtime,slotId}){
+  const pl=choosePlacement(roles.length,slotId);if(!pl){toast('No free room slot','alert');return}
+  const s=pl.slot;closeNP();closeDrawer();
+  if(pl.newLevel){
+    toast(`Level ${levels} is full — building <b>Level ${s.level}</b>`,'office');
+    const G=buildLevel(s.level);G.position.y=7;
+    setLevel(s.level,false);
+    const t=controls.target.clone();t.y=HOME_TARGET.y+levelY(s.level);flyTo(t,Math.min(camera.zoom,1.15),1100);
+    const h0=elevH,h1=levelY(s.level)+1.2;
+    await anim(1200,k=>{const e=easeOut(k);G.position.y=7*(1-e);setElevH(h0+(h1-h0)*e)});
+  }else if(s.level!==viewLevel)setLevel(s.level,false);
+  s.used=true;updateGhosts();
+  const id='p'+Date.now();
+  ZONES[id]={name,x0:s.x0,x1:s.x1,z0:s.z0,z1:s.z1,tint,project:true,progress:[0,roles.length],level:s.level};
+  renderLevels();
+  flyTo(new THREE.Vector3((s.x0+s.x1)/2,levelY(s.level)+.5,(s.z0+s.z1)/2),1.8,900);
+  const zg=buildZone(id,levelGroups[s.level]);zg.scale.set(.01,1,.01);
+  await anim(650,k=>{const e=Math.max(.01,easeBack(k));zg.scale.set(e,1,e)});
+  const pos=podPositions(id,roles.length);
+  const rt=RUNTIMES.find(r=>r.id===runtime);
+  for(let i=0;i<roles.length;i++){
+    const nm=NAME_POOL.find(n=>!byId[n.toLowerCase()])||('Agent'+i);
+    const a={id:nm.toLowerCase(),name:nm,role:roles[i],engine:rt?.provider==='codex'?'Codex':'Claude',runtime,zone:id,
+      state:i===0?'working':'ready',bubble:i===0?`Kicking off ${name}`:'Waiting for the first task'};
+    const p=addPerson(a,'bot',pos[i],id,s.level,levelGroups[s.level]);
+    p.desk.group.scale.setScalar(.01);p.char.root.scale.setScalar(.01);applyState(p);
+    TASKS.push({id:'k'+Date.now()+i,key:'NOA-'+(80+TASKS.length),title:`${roles[i]} kickoff · ${name}`,agent:p.id,zone:id,status:i===0?'in_progress':'todo',due:'This week',flag:null});
+    await anim(420,k=>{const e=Math.max(.01,easeBack(k));p.desk.group.scale.setScalar(e);p.char.root.scale.setScalar(e)});
+  }
+  refreshUI();
+  toast(`Project <b>${name}</b> created · Level ${s.level}, slot ${s.id} · ${roles.length} agent${roles.length===1?'':'s'}`,'check');
+  openZone(id);
+}
+
+/* boot */
+SLOTS[1].forEach(makeGhost);updateGhosts();renderLevels();
+people.forEach(applyState);
+refreshUI();drawMeetScreen();
+setInterval(()=>{$('#clock').textContent=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Jakarta'}).format(new Date())+' WIB'},1000);
+$('#clock').textContent=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Jakarta'}).format(new Date())+' WIB';
+animate();
+setTimeout(()=>toast('Welcome to <b>Noami HQ</b> — drag to rotate, scroll to zoom, click an agent','spark'),800);
+renderer.info.autoReset=false;
+window.__noami={people,camera,controls,scene,renderer};
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 {
-  "name": "kantor-virtual",
+  "name": "noami-3d-virtual-office",
   "private": true,
   "version": "0.1.0",
   "scripts": {
@@ -14,17 +14,23 @@
     "telegram:tes": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/telegram-tes.ts"
   },
   "dependencies": {
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.2",
+    "@react-three/postprocessing": "3.2.2",
     "next": "15.5.28",
+    "postprocessing": "6.39.5",
     "react": "19.1.10",
     "react-dom": "19.1.10",
     "react-markdown": "9.0.1",
     "remark-gfm": "4.0.0",
-    "server-only": "0.0.1"
+    "server-only": "0.0.1",
+    "three": "0.186.1"
   },
   "devDependencies": {
     "@types/node": "22.15.3",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
+    "@types/three": "0.186.0",
     "tsx": "4.19.2",
     "typescript": "5.8.3"
   }

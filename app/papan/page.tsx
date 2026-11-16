@@ -4,7 +4,7 @@ import Shell from "../shell";
 import BoardView from "./board-view";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Task Board · Virtual Office" };
+export const metadata = { title: "Task Board · Noami" };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ ws?: string; p?: string }> }) {
   const { ws, p } = await searchParams;

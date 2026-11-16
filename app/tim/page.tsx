@@ -4,7 +4,7 @@ import Shell from "../shell";
 import TeamView from "./team-view";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Team Members · Virtual Office" };
+export const metadata = { title: "Team · Noami" };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ ws?: string }> }) {
   const { ws } = await searchParams;

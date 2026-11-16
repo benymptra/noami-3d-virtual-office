@@ -1,4 +1,4 @@
-import { loadWorkspace, workspaces, me } from "@/lib/multica";
+import { loadWorkspace, workspaces, me, noamiLayout } from "@/lib/multica";
 import { buildOffice, type Office } from "@/lib/office";
 import OfficeView from "./office-view";
 import Shell from "./shell";
@@ -21,9 +21,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
     const seen: Record<string, string> = {};
     for (const o of offices) for (const [n, t] of Object.entries(o.seen)) if (current.people.includes(n) && (!seen[n] || t > seen[n])) seen[n] = t;
     const cur = buildings.find(b => b.id === current.workspaceId)!;
+    const layout = await noamiLayout(current.workspaceId).catch(() => ({}));
     return (
       <Shell buildings={buildings} current={cur} section="kantor">
-        <OfficeView office={current} buildings={buildings} attention={current.attention} people={current.people} seen={seen} meId={mine?.id ?? null} />
+        <OfficeView office={current} buildings={buildings} attention={current.attention} people={current.people} seen={seen} meId={mine?.id ?? null} layout={layout} />
       </Shell>
     );
   } catch (e) {

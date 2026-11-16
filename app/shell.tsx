@@ -8,6 +8,7 @@ import type { InboxView } from "./api/inbox/route";
 import Messages from "./messages";
 import Reminders from "./reminders";
 import { Px, PxText, type PxName } from "./pixel-icon";
+import { Icon } from "./icons";
 
 export type Nav = { id: string; slug: string; name: string; attention?: number; switchOpen?: boolean };
 export type Section = "kantor" | "papan" | "tim";
@@ -17,7 +18,6 @@ const MENU: { id: Section; path: string; icon: PxName; title: string; sub: strin
   { id: "papan", path: "/papan", icon: "board", title: "Task Board", sub: "every task, by project" },
   { id: "tim", path: "/tim", icon: "team", title: "Team Members", sub: "people, agents & workload" },
 ];
-const KEY = "kantor-side";
 const INBOX_MS = 60_000;
 const initial = (s: string) => s.trim().slice(0, 1).toUpperCase();
 
@@ -55,15 +55,6 @@ function NewWorkspace({ onClose }: { onClose: () => void }) {
 
 export default function Shell({ buildings, current, section, children }: { buildings: Nav[]; current: Nav; section: Section; children: React.ReactNode }) {
   const router = useRouter();
-  // Expanded by default on wide screens, a slim rail on phones. Your choice is remembered in this browser.
-  const [open, setOpen] = useState(true);
-  useEffect(() => {
-    let saved: string | null = null;
-    try { saved = localStorage.getItem(KEY); } catch { /* storage unavailable */ }
-    setOpen(saved ? saved === "open" : matchMedia("(min-width: 900px)").matches);
-  }, []);
-  const toggle = (v: boolean) => { setOpen(v); try { localStorage.setItem(KEY, v ? "open" : "closed"); } catch { /* ignore */ } };
-  const narrow = () => !matchMedia("(min-width: 900px)").matches;
 
   // Workspace switcher
   const [wsOpen, setWsOpen] = useState(false);
@@ -123,64 +114,52 @@ export default function Shell({ buildings, current, section, children }: { build
 
   const path = MENU.find(m => m.id === section)!.path;
   const others = buildings.filter(b => b.id !== current.id);
-  const tip = (t: string) => (open ? undefined : t);
 
   return (
-    <div className={`shell ${open ? "side-open" : "side-rail"}`}>
-      <aside className="side" aria-label="Main menu">
-        <div className="side-top">
-          <button className="side-toggle" onClick={() => toggle(!open)} aria-label={open ? "Collapse menu" : "Expand menu"} title={open ? "Collapse menu" : "Expand menu"}>
-            {open ? "«" : "»"}
+    <div className={`shell glassui sec-${section}`}>
+      {/* Floating island: brand + workspace switcher. Pages can add controls through #island-slot. */}
+      <div className="island-row">
+        <div className="island glass" ref={wsBox}>
+          <span className="logo" aria-hidden>N</span>
+          <button className="ws-cur" onClick={() => setWsOpen(o => !o)} aria-expanded={wsOpen} aria-haspopup="listbox">
+            <span className="ws-t"><b>{current.name} <Icon name="chevron" size={14} /></b><small>Noami · Virtual Office</small></span>
           </button>
-          {open && <b className="side-app">Virtual Office</b>}
-        </div>
-
-        <div className="ws-pick" ref={wsBox}>
-          <button className="ws-cur" onClick={() => setWsOpen(o => !o)} aria-expanded={wsOpen} aria-haspopup="listbox" title={tip(`Workspace: ${current.name}`)}>
-            <span className="ws-av">{initial(current.name)}</span>
-            {open && <span className="ws-t"><small>Workspace</small><b>{current.name}</b></span>}
-            {open && <span className="ws-caret">▾</span>}
-          </button>
+          <span id="island-slot" className="island-slot" />
           {wsOpen && (
-            <div className="ws-pop" role="listbox" aria-label="Switch workspace">
+            <div className="ws-pop glass pop" role="listbox" aria-label="Switch workspace">
               <div className="ws-h">Switch workspace</div>
               {buildings.map(b => (
-                <Link key={b.id} href={`${path}?ws=${b.slug}`} role="option" aria-selected={b.id === current.id} className="ws-opt"
-                  onClick={() => { setWsOpen(false); if (narrow()) toggle(false); }}>
+                <Link key={b.id} href={`${path}?ws=${b.slug}`} role="option" aria-selected={b.id === current.id} className="ws-opt" onClick={() => setWsOpen(false)}>
                   <span className="ws-av sm">{initial(b.name)}</span><span className="ws-n">{b.name}</span>
                   {b.switchOpen === false && <span title="Office closed"><Px name="lock" /></span>}
                   {b.attention ? <span className="count">{b.attention}</span> : null}
-                  {b.id === current.id && <span className="ws-check"><Px name="check" /></span>}
+                  {b.id === current.id && <span className="ws-check"><Icon name="check" size={15} /></span>}
                 </Link>
               ))}
               <button className="ws-opt ws-new" onClick={() => { setWsOpen(false); setNewWs(true); }}>
-                <span className="ws-av sm"><Px name="plus" size="0.9em" /></span><span className="ws-n">New workspace</span>
+                <span className="ws-av sm"><Icon name="plus" size={14} /></span><span className="ws-n">New workspace</span>
               </button>
             </div>
           )}
         </div>
+      </div>
 
-        <nav className="side-menu">
-          {MENU.map(m => (
-            <Link key={m.id} href={`${m.path}?ws=${current.slug}`} className="side-link" aria-current={m.id === section ? "page" : undefined}
-              title={tip(m.title)} onClick={() => narrow() && toggle(false)}>
-              <span className="sl-ic"><Px name={m.icon} /></span>{open && <span className="sl-t"><b>{m.title}</b><small>{m.sub}</small></span>}
-            </Link>
-          ))}
-          <button className="side-link" onClick={() => { setDmWith(null); setDmOpen(true); if (narrow()) toggle(false); }} title={tip(dmUnread ? `Messages (${dmUnread} unread)` : "Messages")}>
-            <span className="sl-ic"><Px name="chat" /></span>{open && <span className="sl-t"><b>Messages</b><small>chat with your teammates</small></span>}
-            {dmUnread > 0 && <span className="sl-badge" aria-label={`${dmUnread} unread`}>{dmUnread > 99 ? "99+" : dmUnread}</span>}
-          </button>
-          <button className="side-link" onClick={() => { setRemindOpen(true); if (narrow()) toggle(false); }} title={tip("Reminders")}>
-            <span className="sl-ic"><Px name="clock" /></span>{open && <span className="sl-t"><b>Reminders</b><small>sent to your Telegram</small></span>}
-          </button>
-          <button className="side-link" onClick={() => { setInboxOpen(true); if (narrow()) toggle(false); }} title={tip(unread ? `Notifications (${unread} unread)` : "Notifications")}>
-            <span className="sl-ic"><Px name="bell" /></span>{open && <span className="sl-t"><b>Notifications</b><small>mentions, reviews & updates</small></span>}
-            {unread > 0 && <span className="sl-badge" aria-label={`${unread} unread`}>{unread > 99 ? "99+" : unread}</span>}
-          </button>
-        </nav>
-      </aside>
-      {open && <div className="side-scrim" onClick={() => toggle(false)} />}
+      {/* Floating dock (macOS style) */}
+      <nav className="dock glass" aria-label="Main menu">
+        {MENU.map(m => (
+          <Link key={m.id} href={`${m.path}?ws=${current.slug}`} className="dk" aria-current={m.id === section ? "page" : undefined} data-tip={m.title} aria-label={m.title}>
+            <Icon name={m.id === "kantor" ? "office" : m.id === "papan" ? "board" : "team"} />
+          </Link>
+        ))}
+        <button className="dk" data-tip="Messages" aria-label="Messages" onClick={() => { setDmWith(null); setDmOpen(true); }}>
+          <Icon name="chat" />{dmUnread > 0 && <span className="badge">{dmUnread > 99 ? "99+" : dmUnread}</span>}
+        </button>
+        <button className="dk" data-tip="Notifications" aria-label="Notifications" onClick={() => setInboxOpen(true)}>
+          <Icon name="bell" />{unread > 0 && <span className="badge">{unread > 99 ? "99+" : unread}</span>}
+        </button>
+        <button className="dk" data-tip="Reminders" aria-label="Reminders" onClick={() => setRemindOpen(true)}><Icon name="clock" /></button>
+        {section === "kantor" && <><div className="dock-sep" /><button className="dk" data-tip="New project" aria-label="New project" onClick={() => dispatchEvent(new CustomEvent("kantor:newproject"))}><Icon name="plus" /></button></>}
+      </nav>
 
       <div className="shell-main">{children}</div>
 

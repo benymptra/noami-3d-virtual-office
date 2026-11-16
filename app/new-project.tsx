@@ -6,7 +6,7 @@ import { Px, Emo } from "./pixel-icon";
 
 const ICONS = ["🎨", "🔬", "⚙️", "📣", "📚", "🛍️", "💡", "🧪", "🗓️", "🚀", "🧭", "🎬"];
 
-export default function NewProject({ ws, people, onDone }: { ws: string; people: Mentionable[]; onDone: (id: string | null) => void }) {
+export default function NewProject({ ws, people, onDone, placement }: { ws: string; people: Mentionable[]; onDone: (id: string | null, title?: string) => void; placement?: string }) {
   const [title, setTitle] = useState(""); const [icon, setIcon] = useState("🚀");
   const [desc, setDesc] = useState(""); const [due, setDue] = useState(""); const [lead, setLead] = useState("");
   const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
@@ -17,7 +17,7 @@ export default function NewProject({ ws, people, onDone }: { ws: string; people:
       const j = await (await fetch("/api/project", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ws, title, icon, description: desc, due, leadType, leadId }) })).json();
       if (j.error) throw new Error(j.error);
-      onDone(j.id);
+      onDone(j.id, title.trim());
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); }
   }
   return (
@@ -26,6 +26,7 @@ export default function NewProject({ ws, people, onDone }: { ws: string; people:
       <form className="modal" role="dialog" aria-modal="true" aria-label="New project" onSubmit={e => { e.preventDefault(); submit(); }}>
         <h2><Px name="folder" /> New project</h2>
         <p className="desc">Group related tasks under one goal. It becomes a tab on the Task Board and a room in the Office.</p>
+        {placement && <p className="hint placement">{placement}</p>}
         <label className="sect" htmlFor="np-title">Name</label>
         <input id="np-title" className="input" autoFocus placeholder="e.g. Website relaunch" value={title} onChange={e => setTitle(e.target.value)} />
         <div className="sect">Icon</div>

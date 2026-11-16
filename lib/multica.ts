@@ -3,6 +3,7 @@ import "server-only";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { DEMO, demoCall } from "./demo-api";
 
 export type Agent = {
   id: string; name: string; description: string; avatar_url: string | null;
@@ -44,10 +45,12 @@ function token(): string {
       }
     }
   }
-  throw new Error("Not signed in to Multica on this laptop. Open Multica Desktop, sign in, then reload the page.");
+  throw new Error(`Not signed in to Multica (${API}). Set MULTICA_TOKEN in .env.local (Multica web → Settings → Tokens) and restart the server, or sign in to this server in Multica Desktop.`);
 }
 
 async function call<T>(method: string, path: string, workspaceId?: string, body?: unknown): Promise<T> {
+  // Demo mode (MULTICA_DEMO=1): answer from in-memory sample data instead of Multica.
+  if (DEMO) return (await demoCall(method, path, workspaceId, body)) as T;
   const headers: Record<string, string> = { Authorization: `Bearer ${token()}`, Accept: "application/json" };
   if (workspaceId) headers["X-Workspace-ID"] = workspaceId;
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -108,6 +111,7 @@ export async function activeRuns(wsPick: string | null | undefined, issueId: str
 
 /** Unggah satu file ke Multica (opsional langsung ke sebuah task). */
 export async function uploadFile(wsPick: string | null | undefined, file: File, issueId?: string) {
+  if (DEMO) throw new Error("File uploads are not available in demo mode.");
   const ws = await workspace(wsPick);
   const form = new FormData();
   form.append("file", file, file.name);
@@ -319,6 +323,24 @@ export type KantorSettings = {
   pausedAutopilots?: string[];
 };
 type WorkspaceFull = Workspace & { settings?: Record<string, unknown> | null };
+
+// ---- Noami 3D office layout (stored in workspace settings, merged; other settings untouched) ----
+/** offsets: desks/furniture moved in Edit mode ([dx, dz] from their default spot).
+ *  rooms: project id → room slot it was given. reserved: projects created from the office, shown before any task exists. */
+export type NoamiLayout = { offsets?: Record<string, [number, number]>; rooms?: Record<string, string>; reserved?: { id: string; name: string }[] };
+export async function noamiLayout(wsPick?: string | null): Promise<NoamiLayout> {
+  const ws = await workspace(wsPick);
+  const full = await get<WorkspaceFull>(`/api/workspaces/${ws.id}`, ws.id);
+  return (((full.settings ?? {}) as Record<string, unknown>).noami_layout as NoamiLayout) ?? {};
+}
+export async function saveNoamiLayout(wsPick: string | null | undefined, patch: NoamiLayout) {
+  const ws = await workspace(wsPick);
+  const full = await get<WorkspaceFull>(`/api/workspaces/${ws.id}`, ws.id);
+  const cur = (((full.settings ?? {}) as Record<string, unknown>).noami_layout as NoamiLayout) ?? {};
+  const next: NoamiLayout = { ...cur, ...patch };
+  await call("PATCH", `/api/workspaces/${ws.id}`, ws.id, { settings: { ...(full.settings ?? {}), noami_layout: next } });
+  return next;
+}
 
 export async function kantorSettings(wsPick?: string | null): Promise<KantorSettings> {
   const ws = await workspace(wsPick);
