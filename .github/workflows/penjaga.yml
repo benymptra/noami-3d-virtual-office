@@ -1,8 +1,10 @@
 name: Penjaga kantor
-# Tiap 30 menit, pukul 07.00–23.30 WIB: lanjutkan task setelah kuota AI pulih + notifikasi Telegram.
+# Lanjutkan task setelah kuota AI pulih + notifikasi Telegram.
+# Manual only for now (Actions → Penjaga kantor → Run workflow): this repo runs the demo and has no MULTICA_TOKEN secret.
+# To run it every 30 minutes (07.00–23.30 WIB) again, add the secrets and put back:
+#   schedule:
+#     - cron: "*/30 0-16 * * *"
 on:
-  schedule:
-    - cron: "*/30 0-16 * * *"
   workflow_dispatch: {}
 concurrency: { group: penjaga, cancel-in-progress: false }
 jobs:
