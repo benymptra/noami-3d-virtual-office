@@ -4,8 +4,21 @@ A fork of [kantor-virtual](https://github.com/sarahshafiran/kantor-virtual) with
 The 3D office fills the screen; every panel (workspace island, dock, roster, HQ panel, drawers, toolbar) floats above it as Apple-style glass.
 Everything still reads from and writes to Multica exactly like the original.
 
+![The 3D office in demo mode](docs/screenshots/office.jpg)
+
 **Try it without a Multica account:** put `MULTICA_DEMO=1` in `.env.local`, run `npm run dev`, open http://127.0.0.1:3456.
 Demo mode answers from built-in sample data (`lib/demo-api.ts`); your changes reset when the server restarts.
+
+### Screenshots (demo mode)
+
+| | |
+|---|---|
+| ![Headquarters panel](docs/screenshots/hq.jpg) | ![Agent details](docs/screenshots/agent.jpg) |
+| **Headquarters**: what is late, waiting on people or ready for review | **Agent details**: click an agent to see its tasks, runs, chat or follow it |
+| ![Standup](docs/screenshots/standup.jpg) | ![Chat with Mika](docs/screenshots/chat.jpg) |
+| **Standup**: agents walk to the meeting room and report one by one | **Ask Mika**: the office manager starts projects, tasks and routines |
+| ![Task board](docs/screenshots/board.jpg) | |
+| **Task Board**: every task in the workspace, by project | |
 
 | What | Where |
 |---|---|
